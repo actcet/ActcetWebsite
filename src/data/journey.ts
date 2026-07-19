@@ -1,0 +1,48 @@
+import type { JourneyYear } from "@/types";
+
+export const journeyYears: JourneyYear[] = [
+  {
+    id: "year-2022-23",
+    year: "2022–23",
+    title: "The First Orbit",
+    events: 4,
+    outreach: 1,
+    workshops: 1,
+    competitions: 1,
+    stargazing: 1,
+    podcasts: 0,
+  },
+  {
+    id: "year-2023-24",
+    year: "2023–24",
+    title: "Gaining Momentum",
+    events: 6,
+    outreach: 2,
+    workshops: 2,
+    competitions: 2,
+    stargazing: 2,
+    podcasts: 0,
+  },
+  {
+    id: "year-2024-25",
+    year: "2024–25",
+    title: "Reaching Further",
+    events: 9,
+    outreach: 3,
+    workshops: 3,
+    competitions: 2,
+    stargazing: 3,
+    podcasts: 2,
+  },
+  {
+    id: "year-2025-26",
+    year: "2025–26",
+    title: "Expanding the Astroverse",
+    events: 11,
+    outreach: 2,
+    workshops: 3,
+    competitions: 2,
+    stargazing: 1,
+    podcasts: 1,
+  },
+];
