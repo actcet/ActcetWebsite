@@ -1,0 +1,99 @@
+mutation CreateClubData @auth(level: USER) {
+  club_insert(data: { name: "Chess Club", description: "Learn strategy", missionStatement: "Promote chess" })
+}
+
+mutation DeleteClub($id: UUID!) @auth(level: USER) {
+  club_delete(key: {id: $id})
+}
+
+mutation UpdateClub($id: UUID!, $description: String!) @auth(level: USER) {
+  club_update(key: {id: $id}, data: { description: $description })
+}
+
+query GetClub($id: UUID!) @auth(level: PUBLIC, insecureReason: "Clubs are public information") {
+  club(id: $id) { name description }
+}
+
+query ListClubs @auth(level: PUBLIC, insecureReason: "Clubs are public information") {
+  clubs { name }
+}
+
+mutation CreateEvent($data: Event_Data!) @auth(level: USER) {
+  event_insert(data: $data)
+}
+
+mutation DeleteEvent($id: UUID!) @auth(level: USER) {
+  event_delete(key: {id: $id})
+}
+
+mutation UpdateEvent($id: UUID!, $location: String!) @auth(level: USER) {
+  event_update(key: {id: $id}, data: { location: $location })
+}
+
+query GetEvent($id: UUID!) @auth(level: PUBLIC, insecureReason: "Events are public information") {
+  event(id: $id) { title startTime location }
+}
+
+query ListEvents @auth(level: PUBLIC, insecureReason: "Events are public information") {
+  events { title startTime }
+}
+
+mutation CreateCommitteeMember($data: CommitteeMember_Data!) @auth(level: USER) {
+  committeeMember_insert(data: $data)
+}
+
+mutation DeleteCommitteeMember($id: UUID!) @auth(level: USER) {
+  committeeMember_delete(key: {id: $id})
+}
+
+mutation UpdateCommitteeMember($id: UUID!, $role: String!) @auth(level: USER) {
+  committeeMember_update(key: {id: $id}, data: { role: $role })
+}
+
+query GetCommitteeMember($id: UUID!) @auth(level: PUBLIC, insecureReason: "Committee members are public") {
+  committeeMember(id: $id) { name role email }
+}
+
+query ListCommitteeMembers @auth(level: PUBLIC, insecureReason: "Committee members are public") {
+  committeeMembers { name role }
+}
+
+mutation CreateMemberInterest($data: MemberInterest_Data!) @auth(level: USER) {
+  memberInterest_insert(data: $data)
+}
+
+mutation DeleteMemberInterest($id: UUID!) @auth(level: USER) {
+  memberInterest_delete(key: {id: $id})
+}
+
+mutation UpdateMemberInterest($id: UUID!, $email: String!) @auth(level: USER) {
+  memberInterest_update(key: {id: $id}, data: { email: $email })
+}
+
+query GetMemberInterest($id: UUID!) @auth(level: USER) {
+  memberInterest(id: $id) { email registrationDate }
+}
+
+query ListMemberInterests @auth(level: USER) {
+  memberInterests { email registrationDate }
+}
+
+mutation CreateRSVP($data: EventRSVP_Data!) @auth(level: USER) {
+  eventRSVP_insert(data: $data)
+}
+
+mutation DeleteRSVP($id: UUID!) @auth(level: USER) {
+  eventRSVP_delete(key: {id: $id})
+}
+
+mutation UpdateRSVP($id: UUID!, $status: String!) @auth(level: USER) {
+  eventRSVP_update(key: {id: $id}, data: { status: $status })
+}
+
+query GetRSVP($id: UUID!) @auth(level: USER) {
+  eventRSVP(id: $id) { studentName status }
+}
+
+query ListRSVPs @auth(level: USER) {
+  eventRSVPS { studentName status }
+}

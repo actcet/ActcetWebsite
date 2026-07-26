@@ -1,0 +1,70 @@
+mutation SeedData @transaction @auth(level: USER) {
+  clubs: club_insertMany(data: [
+    {
+      id: "3e0c030d-27b2-4d43-8557-0a2b8e5c1234",
+      name: "Chess Club",
+      description: "A community for chess enthusiasts of all levels.",
+      missionStatement: "To foster strategic thinking and camaraderie through chess."
+    },
+    {
+      id: "3e0c030d-27b2-4d43-8557-0a2b8e5c5678",
+      name: "Photography Club",
+      description: "Capturing moments and learning camera techniques.",
+      missionStatement: "Empowering visual storytellers."
+    }
+  ])
+  
+  committeeMembers: committeeMember_insertMany(data: [
+    {
+      name: "Alice Smith",
+      role: "President",
+      clubId: "3e0c030d-27b2-4d43-8557-0a2b8e5c1234"
+    },
+    {
+      name: "Bob Jones",
+      role: "Treasurer",
+      clubId: "3e0c030d-27b2-4d43-8557-0a2b8e5c5678"
+    }
+  ])
+  
+  events: event_insertMany(data: [
+    {
+      title: "Spring Chess Tournament",
+      startTime: "2024-05-01T10:00:00Z",
+      location: "Student Union Hall",
+      clubId: "3e0c030d-27b2-4d43-8557-0a2b8e5c1234"
+    },
+    {
+      title: "Golden Hour Workshop",
+      startTime: "2024-06-15T18:00:00Z",
+      location: "Campus Green",
+      clubId: "3e0c030d-27b2-4d43-8557-0a2b8e5c5678"
+    }
+  ])
+  
+  eventRSVPs: eventRSVP_insertMany(data: [
+    {
+      studentName: "Charlie Brown",
+      status: "Confirmed",
+      eventId: "3e0c030d-27b2-4d43-8557-0a2b8e5c1234"
+    },
+    {
+      studentName: "Daisy Miller",
+      status: "Pending",
+      eventId: "3e0c030d-27b2-4d43-8557-0a2b8e5c5678"
+    }
+  ])
+  
+  memberInterests: memberInterest_insertMany(data: [
+    {
+      email: "charlie@example.edu",
+      registrationDate: "2024-01-10T09:00:00Z",
+      clubId: "3e0c030d-27b2-4d43-8557-0a2b8e5c1234"
+    },
+    {
+      email: "daisy@example.edu",
+      registrationDate: "2024-02-12T11:00:00Z",
+      clubId: "3e0c030d-27b2-4d43-8557-0a2b8e5c5678"
+    }
+  ])
+}

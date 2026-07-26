@@ -1,0 +1,38 @@
+type Club @table {
+  name: String!
+  description: String!
+  missionStatement: String!
+  socialMediaLinks: [String]
+  websiteUrl: String
+}
+
+type Event @table {
+  title: String!
+  startTime: Timestamp!
+  location: String!
+  description: String
+  flyerImageUrl: String
+  endTime: Timestamp
+  club: Club!
+}
+
+type CommitteeMember @table {
+  name: String!
+  role: String!
+  bio: String
+  profileImageUrl: String
+  email: String
+  club: Club!
+}
+
+type MemberInterest @table {
+  email: String!
+  registrationDate: Timestamp!
+  club: Club!
+}
+
+type EventRSVP @table {
+  studentName: String!
+  status: String!
+  event: Event!
+}
