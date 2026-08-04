@@ -2,8 +2,8 @@ import { placeholderImage } from "@/lib/utils";
 import type { CommitteeMember } from "@/types";
 
 export const coreCommittee: CommitteeMember[] = [
-  { id: "core-1", name: "Aarav Sharma", position: "President", year: "2025–26", photo: placeholderImage("actcet-core-1", 300, 300) },
-  { id: "core-2", name: "Diya Mehta", position: "Vice President", year: "2025–26", photo: placeholderImage("actcet-core-2", 300, 300) },
+  { id: "core-1", name: "krrish joshi", position: "President", year: "2025–26", photo: placeholderImage("actcet-core-1", 300, 300) },
+  { id: "core-2", name: "Diya dinesh ", position: "Vice President", year: "2025–26", photo: placeholderImage("actcet-core-2", 300, 300) },
   { id: "core-3", name: "Kabir Nair", position: "General Secretary", year: "2025–26", photo: placeholderImage("actcet-core-3", 300, 300) },
   { id: "core-4", name: "Ishita Rao", position: "Treasurer", year: "2025–26", photo: placeholderImage("actcet-core-4", 300, 300) },
 ];
