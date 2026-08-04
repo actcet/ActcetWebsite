@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --navbar-bg-top: rgba(6, 14, 28, 0);
+  --navbar-bg-scrolled: rgba(6, 14, 28, 0.84);
+  --navbar-text: rgba(255, 255, 255, 0.96);
+  --navbar-text-muted: rgba(221, 236, 244, 0.8);
+  --navbar-accent: #2596be;
+}
+
 html {
   scroll-behavior: smooth;
 }
