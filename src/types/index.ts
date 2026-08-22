@@ -49,7 +49,10 @@ export interface CommitteeMember {
   position: string;
   year: string;
   photo: string;
+  photoPosition?: string;
   linkedin?: string;
+  instagram?: string;
+  assignedWorkingMembers?: string[];
   email?: string;
 }
 

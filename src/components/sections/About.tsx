@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Telescope, Search, Lightbulb, Rocket, GraduationCap, Cpu, Mic, Users } from "lucide-react";
 import Reveal from "@/components/ui/Reveal";
 import Eyebrow from "@/components/ui/Eyebrow";
@@ -45,8 +44,6 @@ const missionItems = [
 ];
 
 export default function About() {
-  const [aboutExpanded, setAboutExpanded] = useState(false);
-
   return (
     <section id="about" className="py-28 px-[6vw]">
       <div className="max-w-[1280px] mx-auto">
@@ -59,7 +56,7 @@ export default function About() {
 
         <div className="grid md:grid-cols-2 gap-14 items-start mt-8">
           <Reveal>
-            <p className={`text-ink-soft text-[1.2rem] leading-8 max-w-xl ${aboutExpanded ? "" : "line-clamp-4"}`}>
+            <p className="text-ink-soft text-[1.2rem] leading-8 max-w-xl">
               The Astronomy Club of TCET (AC - TCET) under ISRO SPACE TUTOR has been committed to fostering a
               community of individuals who share a deep interest in astronomy and providing them with opportunities
               to expand their knowledge and skills. Over the course of the previous year, our organization arranged
@@ -72,14 +69,6 @@ export default function About() {
               interest in astronomy, where they can provide support to one another and deepen their understanding of
               the subject.
             </p>
-            <button
-              type="button"
-              onClick={() => setAboutExpanded((expanded) => !expanded)}
-              className="mt-2 font-label text-sm font-semibold text-primary hover:text-primary-dark transition-colors"
-              aria-expanded={aboutExpanded}
-            >
-              {aboutExpanded ? "Show less" : "Read more"}
-            </button>
             <div className="mt-10 w-full max-w-xl rounded-xl2 bg-white/45 p-2 shadow-[0_8px_24px_rgba(10,25,47,0.06)]">
               <img
                 src="/images/image.png"
