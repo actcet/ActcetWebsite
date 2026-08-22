@@ -1,3 +1,5 @@
+import { useRef } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import Reveal from "@/components/ui/Reveal";
 import Eyebrow from "@/components/ui/Eyebrow";
 import { journeyYears } from "@/data/journey";
@@ -7,6 +9,12 @@ function scrollToYear(id: string) {
 }
 
 export default function Journey() {
+  const timelineRef = useRef<HTMLDivElement>(null);
+
+  function scrollTimeline(direction: number) {
+    timelineRef.current?.scrollBy({ left: direction * 320, behavior: "smooth" });
+  }
+
   return (
     <section id="journey" className="py-28 px-[6vw] bg-bg-alt">
       <div className="max-w-[1280px] mx-auto">
@@ -18,8 +26,27 @@ export default function Journey() {
           Four years of orbits, outreach, and discovery — click a year to explore its missions.
         </p>
 
+        <div className="flex items-center justify-end gap-2 mb-2 md:mb-0">
+          <button
+            type="button"
+            onClick={() => scrollTimeline(-1)}
+            aria-label="Scroll timeline backward"
+            className="hidden md:inline-flex w-10 h-10 items-center justify-center rounded-full border border-navy/15 text-navy hover:bg-navy hover:text-white transition-colors"
+          >
+            <ChevronLeft size={20} />
+          </button>
+          <button
+            type="button"
+            onClick={() => scrollTimeline(1)}
+            aria-label="Scroll timeline forward"
+            className="hidden md:inline-flex w-10 h-10 items-center justify-center rounded-full border border-navy/15 text-navy hover:bg-navy hover:text-white transition-colors"
+          >
+            <ChevronRight size={20} />
+          </button>
+        </div>
+
         {/* Desktop: horizontal orbit track. Mobile: vertical orbit track. */}
-        <div className="flex flex-col md:flex-row gap-8 md:gap-0 overflow-x-auto no-scrollbar pt-14 pb-4">
+        <div ref={timelineRef} className="flex flex-col md:flex-row gap-8 md:gap-0 overflow-x-auto no-scrollbar pt-8 md:pt-14 pb-4 scroll-smooth">
           {journeyYears.map((y, i) => (
             <Reveal key={y.id} delay={i * 0.08} className="relative md:min-w-[280px] shrink-0 md:px-6">
               {/* connecting orbit line */}

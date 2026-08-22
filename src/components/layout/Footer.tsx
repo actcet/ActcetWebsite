@@ -15,8 +15,8 @@ export default function Footer() {
       <div className="max-w-[1280px] mx-auto grid grid-cols-1 md:grid-cols-4 gap-10">
         <div>
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-[42px] h-[42px] rounded-full flex items-center justify-center bg-[conic-gradient(from_200deg,#2596be,#64FFDA,#0A192F,#2596be)]">
-              <span className="text-white font-display font-extrabold text-xs">AC</span>
+            <div className="w-[42px] h-[42px] rounded-full overflow-hidden">
+              <img src="/images/ACTCET%20LOGO.png" alt="ACTCET Astronomy Club" className="w-full h-full object-cover" />
             </div>
             <div className="font-display font-bold text-sm text-white">
               ACTCET

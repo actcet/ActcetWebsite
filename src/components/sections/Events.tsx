@@ -3,7 +3,6 @@ import Eyebrow from "@/components/ui/Eyebrow";
 import Badge from "@/components/ui/Badge";
 import { yearEvents } from "@/data/events";
 import EventCard from "./EventCard";
-import MiniProgress from "./MiniProgress";
 import OlderYearAccordion from "./OlderYearAccordion";
 
 export default function Events() {
@@ -28,15 +27,20 @@ export default function Events() {
               <Badge>Current Year</Badge>
             </div>
 
-            <MiniProgress steps={currentYear.progression} />
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-7">
-              {currentYear.events.map((event, i) => (
-                <Reveal key={event.id} delay={(i % 3) * 0.06}>
-                  <EventCard event={event} />
-                </Reveal>
-              ))}
-            </div>
+            {currentYear.events.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-7">
+                {currentYear.events.map((event, i) => (
+                  <Reveal key={event.id} delay={(i % 3) * 0.06}>
+                    <EventCard event={event} />
+                  </Reveal>
+                ))}
+              </div>
+            ) : (
+              <p className="text-ink-soft max-w-xl mt-8">
+                Events for the 2026–27 academic year will be announced soon.
+              </p>
+            )}
           </div>
         )}
 

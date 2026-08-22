@@ -45,4 +45,15 @@ export const journeyYears: JourneyYear[] = [
     stargazing: 1,
     podcasts: 1,
   },
+  {
+    id: "year-2026-27",
+    year: "2026–27",
+    title: "Present Timeline",
+    events: 11,
+    outreach: 2,
+    workshops: 3,
+    competitions: 2,
+    stargazing: 1,
+    podcasts: 1,
+  },
 ];

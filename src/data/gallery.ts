@@ -1,7 +1,7 @@
 import { placeholderImage } from "@/lib/utils";
 import type { GalleryImage } from "@/types";
 
-export const galleryYears = ["2025–26", "2024–25", "2023–24", "2022–23"] as const;
+export const galleryYears = ["2026–27", "2025–26", "2024–25", "2023–24", "2022–23"] as const;
 
 const heights = [280, 220, 320, 240, 300, 230, 290, 250];
 

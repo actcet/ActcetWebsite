@@ -9,9 +9,15 @@ import type { YearEvents } from "@/types";
  */
 export const yearEvents: YearEvents[] = [
   {
+    id: "year-2026-27",
+    year: "2026–27",
+    current: true,
+    progression: ["Planning", "Orientation", "Workshops", "Outreach", "Stargazing"],
+    events: [],
+  },
+  {
     id: "year-2025-26",
     year: "2025–26",
-    current: true,
     progression: [
       "July",
       "Orientation",

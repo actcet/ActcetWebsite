@@ -1,3 +1,4 @@
+import { useState } from "react";
 import Eyebrow from "@/components/ui/Eyebrow";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
@@ -5,6 +6,8 @@ import Reveal from "@/components/ui/Reveal";
 import { mentor } from "@/data/mentor";
 
 export default function Mentor() {
+  const [bioExpanded, setBioExpanded] = useState(false);
+
   return (
     <section className="py-28 px-[6vw]">
       <div className="max-w-[1280px] mx-auto">
@@ -18,7 +21,7 @@ export default function Mentor() {
             <img
               src={mentor.photo}
               alt={mentor.name}
-              className="w-[220px] h-[220px] rounded-full object-cover border-4 border-white shadow-soft mx-auto md:mx-0"
+              className="w-[220px] h-[220px] rounded-full object-contain bg-[#edf5f7] border-4 border-white shadow-soft mx-auto md:mx-0"
             />
             <div>
               <h3 className="font-display font-semibold text-navy text-2xl mb-1">{mentor.name}</h3>
@@ -27,7 +30,15 @@ export default function Mentor() {
                 <Badge>{mentor.tag}</Badge>
                 <Badge>{mentor.yearsAssociated}</Badge>
               </div>
-              <p className="text-ink-soft text-[0.95rem] mb-4">{mentor.bio}</p>
+              <p className={`text-ink-soft text-[0.95rem] ${bioExpanded ? "" : "line-clamp-4"}`}>{mentor.bio}</p>
+              <button
+                type="button"
+                onClick={() => setBioExpanded((expanded) => !expanded)}
+                className="mt-2 mb-4 font-label text-sm font-semibold text-primary hover:text-primary-dark transition-colors"
+                aria-expanded={bioExpanded}
+              >
+                {bioExpanded ? "Show less" : "Read more"}
+              </button>
               <p className="italic text-ink text-[0.95rem]">&ldquo;{mentor.message}&rdquo;</p>
             </div>
           </Card>

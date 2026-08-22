@@ -37,14 +37,8 @@ export default function Hero() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, ease: [0.2, 0.7, 0.3, 1] }}
       >
-        <div
-          className="w-24 h-24 mx-auto mb-7 rounded-full flex items-center justify-center"
-          style={{
-            background: "conic-gradient(from 200deg, #2596be, #64FFDA, #0A192F, #2596be)",
-            boxShadow: "0 0 0 6px rgba(255,255,255,0.08), 0 0 60px rgba(37,150,190,0.5)",
-          }}
-        >
-          <span className="font-display text-white font-extrabold text-2xl">AC</span>
+        <div className="w-28 h-28 mx-auto mb-7 rounded-full overflow-hidden border-4 border-white/80 shadow-[0_0_0_6px_rgba(255,255,255,0.08),0_0_60px_rgba(37,150,190,0.5)]">
+          <img src="/images/ACTCET%20LOGO.png" alt="ACTCET Astronomy Club" className="w-full h-full object-cover" />
         </div>
 
         <div className="text-mint-bright font-label text-sm tracking-[0.2em] uppercase font-semibold mb-4">
@@ -75,19 +69,6 @@ export default function Hero() {
         </div>
       </motion.div>
 
-      <div className="absolute bottom-9 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2 text-[#8FB3CC] text-xs tracking-[0.15em] font-label">
-        SCROLL
-        <div className="w-px h-11 bg-gradient-to-b from-[#8FB3CC] to-transparent relative overflow-hidden">
-          <span className="absolute top-0 left-0 w-full h-3.5 bg-mint-bright animate-[scrolldown_1.8s_ease-in-out_infinite]" />
-        </div>
-      </div>
-
-      <style>{`
-        @keyframes scrolldown {
-          0% { transform: translateY(-14px); }
-          100% { transform: translateY(58px); }
-        }
-      `}</style>
     </header>
   );
 }
