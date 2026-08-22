@@ -60,11 +60,17 @@ export default function About() {
         <div className="grid md:grid-cols-2 gap-14 items-start mt-8">
           <Reveal>
             <p className={`text-ink-soft text-[1.2rem] leading-8 max-w-xl ${aboutExpanded ? "" : "line-clamp-4"}`}>
-              ACTCET is the official Astronomy Club of Thakur College of Engineering &amp; Technology — a
-              student-led community of stargazers, engineers, and researchers who believe science should be seen,
-              not just studied. Since our founding, we&apos;ve grown into a recognised outreach body under ISRO,
-              hosting workshops, observations, competitions, and a growing podcast that brings the cosmos closer to
-              campus and community alike.
+              The Astronomy Club of TCET (AC - TCET) under ISRO SPACE TUTOR has been committed to fostering a
+              community of individuals who share a deep interest in astronomy and providing them with opportunities
+              to expand their knowledge and skills. Over the course of the previous year, our organization arranged
+              an assortment of events, including observing sessions, workshops, and podcasts, all of which were
+              geared toward promoting an appreciation for astronomy. Our members actively contributed to the group&apos;s
+              endeavors by sharing their experiences and collaborating on astronomy-related projects. We also
+              expanded our outreach to encompass schools and college events to showcase our passion for astronomy.
+              Additionally, we created an Instagram account to share noteworthy discoveries and accomplishments in
+              the field. Ultimately, our primary objective is to foster a welcoming community of individuals with an
+              interest in astronomy, where they can provide support to one another and deepen their understanding of
+              the subject.
             </p>
             <button
               type="button"
@@ -74,7 +80,7 @@ export default function About() {
             >
               {aboutExpanded ? "Show less" : "Read more"}
             </button>
-            <div className="mt-10 w-full max-w-xl rounded-xl2 border border-navy/[0.08] bg-white/45 p-2 shadow-[0_8px_24px_rgba(10,25,47,0.06)]">
+            <div className="mt-10 w-full max-w-xl rounded-xl2 bg-white/45 p-2 shadow-[0_8px_24px_rgba(10,25,47,0.06)]">
               <img
                 src="/images/image.png"
                 alt="ACTCET students attending a space science outreach session"
@@ -88,7 +94,7 @@ export default function About() {
               {missionItems.map((item) => (
                 <div
                   key={item.num}
-                  className="flex gap-4 items-start rounded-xl2 border border-navy/[0.08] bg-white/80 p-5 md:p-6 shadow-[0_8px_24px_rgba(10,25,47,0.06)]"
+                  className="flex min-h-[220px] gap-4 items-start rounded-xl2 border border-navy/[0.08] bg-white/80 p-5 md:p-6 shadow-[0_8px_24px_rgba(10,25,47,0.06)]"
                 >
                   <div className="font-display font-bold text-primary text-xl min-w-[38px]">{item.num}</div>
                   <div className="min-w-0">

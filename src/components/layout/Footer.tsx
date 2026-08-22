@@ -1,12 +1,11 @@
-import { Instagram, Linkedin, Youtube, Music2, Mail } from "lucide-react";
+import { Instagram, Linkedin, Youtube, Mail } from "lucide-react";
 import { navLinks } from "@/data/navigation";
 
 const socials = [
-  { icon: Instagram, label: "Instagram" },
-  { icon: Linkedin, label: "LinkedIn" },
-  { icon: Youtube, label: "YouTube" },
-  { icon: Music2, label: "Spotify" },
-  { icon: Mail, label: "Email" },
+  { icon: Instagram, label: "Instagram", href: "https://www.instagram.com/tcet_astronomy.club" },
+  { icon: Linkedin, label: "LinkedIn" ,href: "https://www.linkedin.com/company/astronomy-club-tcet/" },
+  { icon: Youtube, label: "YouTube", href: "https://www.youtube.com/@actcet" },
+  { icon: Mail, label: "Email", href: "mailto:actcet@tcetmumbai.in" },
 ];
 
 export default function Footer() {
@@ -15,8 +14,8 @@ export default function Footer() {
       <div className="max-w-[1280px] mx-auto grid grid-cols-1 md:grid-cols-4 gap-10">
         <div>
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-[42px] h-[42px] rounded-full overflow-hidden">
-              <img src="/images/ACTCET%20LOGO.png" alt="ACTCET Astronomy Club" className="w-full h-full object-cover" />
+            <div className="w-[52px] h-[38px]">
+              <img src="/images/Actcet%20Images/IMP%20LOGO/ACTCET%20LOGO%20(1).png" alt="ACTCET Astronomy Club" className="w-full h-full object-contain" />
             </div>
             <div className="font-display font-bold text-sm text-white">
               ACTCET
@@ -29,10 +28,12 @@ export default function Footer() {
             Exploring the Universe, Inspiring the Future — under the ISRO Outreach Programme.
           </p>
           <div className="flex gap-2.5">
-            {socials.map(({ icon: Icon, label }) => (
+            {socials.map(({ icon: Icon, label, href }) => (
               <a
                 key={label}
-                href="#"
+                href={href ?? "#"}
+                target={href?.startsWith("http") ? "_blank" : undefined}
+                rel={href?.startsWith("http") ? "noreferrer" : undefined}
                 aria-label={label}
                 className="w-[38px] h-[38px] rounded-full bg-white/[0.06] flex items-center justify-center hover:bg-white/15 transition-colors"
               >

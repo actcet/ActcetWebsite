@@ -37,8 +37,8 @@ export default function Hero() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, ease: [0.2, 0.7, 0.3, 1] }}
       >
-        <div className="w-28 h-28 mx-auto mb-7 rounded-full overflow-hidden border-4 border-white/80 shadow-[0_0_0_6px_rgba(255,255,255,0.08),0_0_60px_rgba(37,150,190,0.5)]">
-          <img src="/images/ACTCET%20LOGO.png" alt="ACTCET Astronomy Club" className="w-full h-full object-cover" />
+        <div className="w-40 h-28 mx-auto mb-7">
+          <img src="/images/Actcet%20Images/IMP%20LOGO/ACTCET%20LOGO%20(1).png" alt="ACTCET Astronomy Club" className="w-full h-full object-contain" />
         </div>
 
         <div className="text-mint-bright font-label text-sm tracking-[0.2em] uppercase font-semibold mb-4">

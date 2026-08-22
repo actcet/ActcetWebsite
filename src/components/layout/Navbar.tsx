@@ -105,11 +105,11 @@ export default function Navbar() {
         {/* LOGO */}
 
         <a href="#home" className="flex items-center gap-3">
-          <div className="w-[42px] h-[42px] rounded-full overflow-hidden shadow-[0_0_0_3px_rgba(255,255,255,0.6),0_6px_16px_-4px_rgba(37,150,190,0.5)]">
+          <div className="w-[52px] h-[38px]">
             <img
-              src="/images/ACTCET%20LOGO.png"
+              src="/images/Actcet%20Images/IMP%20LOGO/ACTCET%20LOGO%20(1).png"
               alt="ACTCET Astronomy Club"
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain"
             />
           </div>
 

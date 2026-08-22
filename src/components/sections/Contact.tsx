@@ -30,15 +30,33 @@ export default function Contact() {
                   </div>
                   <div>
                     <div className="font-label font-semibold text-sm text-navy">{c.label}</div>
-                    <div className="text-sm text-ink-soft">{c.value}</div>
+                    {c.href ? (
+                      <a
+                        href={c.href}
+                        target={c.href.startsWith("http") ? "_blank" : undefined}
+                        rel={c.href.startsWith("http") ? "noreferrer" : undefined}
+                        className="text-sm text-ink-soft hover:text-primary transition-colors"
+                      >
+                        {c.value}
+                      </a>
+                    ) : (
+                      <div className="text-sm text-ink-soft">{c.value}</div>
+                    )}
                   </div>
                 </Card>
               );
             })}
           </div>
 
-          <div className="rounded-xl2 min-h-[320px] h-full flex items-center justify-center text-ink-soft font-label text-sm border border-navy/[0.09] bg-[repeating-linear-gradient(45deg,#E4EFF4,#E4EFF4_10px,#dceaf0_10px,#dceaf0_20px)]">
-            Google Maps Placeholder
+          <div className="rounded-xl2 min-h-[320px] h-full overflow-hidden border border-navy/[0.09] bg-white shadow-soft">
+            <iframe
+              src="https://www.google.com/maps/embed?pb=!1m17!1m12!1m3!1d4017.9457178717944!2d72.8719990754001!3d19.206377047866255!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m2!1m1!2zMTnCsDEyJzIyLjkiTiA3MsKwNTInMjguNSJF!5e1!3m2!1sen!2sin!4v1787401617484!5m2!1sen!2sin"
+              title="ACTCET location at Thakur College of Engineering and Technology"
+              className="w-full h-full min-h-[320px] border-0"
+              loading="lazy"
+              referrerPolicy="strict-origin-when-cross-origin"
+              allowFullScreen
+            />
           </div>
         </div>
       </div>

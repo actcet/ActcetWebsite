@@ -43,7 +43,7 @@ export const yearEvents: YearEvents[] = [
         participants: "120+",
         objective: "Welcome new members and introduce ACTCET's mission and activities.",
         outcome: "120+ students onboarded as new club members.",
-        image: placeholderImage("actcet-orientation-2025", 640, 420),
+        image: "/images/Actcet%20Images/actet%202025-2026/ORIENTATION/Orientation%202025.jpg.jpg",
         gallery: [
           placeholderImage("actcet-orientation-2025-1", 500, 500),
           placeholderImage("actcet-orientation-2025-2", 500, 500),
@@ -60,7 +60,7 @@ export const yearEvents: YearEvents[] = [
         participants: "60+",
         objective: "Teach students to assemble, calibrate, and use amateur telescopes.",
         outcome: "Hands-on telescope literacy for 60+ students.",
-        image: placeholderImage("actcet-telescope-workshop", 640, 420),
+        image: "/images/Actcet%20Images/actet%202025-2026/TELESCOPE%20WORKSHOP/Telescope%20Workshop%202025.jpg.jpeg",
         gallery: [
           placeholderImage("actcet-telescope-1", 500, 500),
           placeholderImage("actcet-telescope-2", 500, 500),
@@ -76,7 +76,7 @@ export const yearEvents: YearEvents[] = [
         participants: "50+",
         objective: "Explore immersive AR/VR simulations of the solar system and beyond.",
         outcome: "Prototype AR/VR space-exploration demos built by students.",
-        image: placeholderImage("actcet-arvr-workshop", 640, 420),
+        image: "/images/Actcet%20Images/actet%202025-2026/AR%20VR%20WORKSHOP/AR%20VR%202025.jpg",
         gallery: [placeholderImage("actcet-arvr-1", 500, 500), placeholderImage("actcet-arvr-2", 500, 500)],
       },
       {
@@ -89,7 +89,7 @@ export const yearEvents: YearEvents[] = [
         participants: "300+",
         objective: "Celebrate National Space Day with talks, exhibits, and competitions.",
         outcome: "Flagship two-day festival reaching 300+ attendees.",
-        image: placeholderImage("actcet-astromanthan-2025", 640, 420),
+        image: "/images/Actcet%20Images/actet%202025-2026/ASTROMANTHAN/AStromanthan%202025.JPG%20(1).jpeg",
         gallery: [
           placeholderImage("actcet-astromanthan-1", 500, 500),
           placeholderImage("actcet-astromanthan-2", 500, 500),
@@ -106,7 +106,7 @@ export const yearEvents: YearEvents[] = [
         participants: "200+",
         objective: "Run inter-college space-themed quiz and challenge rounds.",
         outcome: "200+ participants across three competitive rounds.",
-        image: placeholderImage("actcet-space-blitz", 640, 420),
+        image: "/images/Actcet%20Images/actet%202025-2026/ZEPHYR%20SPACE%20BLITZ/Space%20Blitz%202025.jpg.jpeg",
         gallery: [placeholderImage("actcet-blitz-1", 500, 500), placeholderImage("actcet-blitz-2", 500, 500)],
       },
       {
@@ -119,7 +119,7 @@ export const yearEvents: YearEvents[] = [
         participants: "150+",
         objective: "Bring interactive astronomy sessions to school students.",
         outcome: "150+ school students introduced to basic astronomy concepts.",
-        image: placeholderImage("actcet-brahmaand-suvidya", 640, 420),
+        image: "/images/Actcet%20Images/actet%202025-2026/SUVIDHYA%20OUTREACH/Suvidhya%202025.jpg.jpg",
         gallery: [placeholderImage("actcet-suvidya-1", 500, 500), placeholderImage("actcet-suvidya-2", 500, 500)],
       },
       {
@@ -132,7 +132,7 @@ export const yearEvents: YearEvents[] = [
         participants: "—",
         objective: "Publish a new episode discussing recent developments in space science.",
         outcome: "New episode released across all podcast platforms.",
-        image: placeholderImage("actcet-podcast-dec", 640, 420),
+        image: "/images/Actcet%20Images/actet%202025-2026/PODCAST/Podcast%202025.png",
         gallery: [placeholderImage("actcet-podcast-dec-1", 500, 500)],
       },
       {
@@ -145,7 +145,7 @@ export const yearEvents: YearEvents[] = [
         participants: "80+",
         objective: "Connect STEM fundamentals to real-world space applications.",
         outcome: "80+ students completed hands-on STEM modules.",
-        image: placeholderImage("actcet-stem-workshop", 640, 420),
+        image: "/images/Actcet%20Images/actet%202025-2026/STEM%20WORKSHOP/Stem%202025.jpg.jpeg",
         gallery: [placeholderImage("actcet-stem-1", 500, 500), placeholderImage("actcet-stem-2", 500, 500)],
       },
       {
@@ -158,7 +158,7 @@ export const yearEvents: YearEvents[] = [
         participants: "150+",
         objective: "Extend the Brahmaand Outreach programme to a new partner school.",
         outcome: "150+ students engaged through live demonstrations.",
-        image: placeholderImage("actcet-brahmaand-mahindra", 640, 420),
+        image: "/images/Actcet%20Images/actet%202025-2026/MAHINDRA%20OUTREACH/mahindra%20brahmand%202025.jpg.jpeg",
         gallery: [placeholderImage("actcet-mahindra-1", 500, 500), placeholderImage("actcet-mahindra-2", 500, 500)],
       },
       {
@@ -171,7 +171,7 @@ export const yearEvents: YearEvents[] = [
         participants: "100+",
         objective: "Host a guided night-sky and lunar observation session.",
         outcome: "100+ students observed the Moon and visible planets live.",
-        image: placeholderImage("actcet-stargazing-2026", 640, 420),
+        image: "/images/Actcet%20Images/actet%202025-2026/MOON%20GAZING/Moongazing%202025.JPG.jpg",
         gallery: [placeholderImage("actcet-stargaze-1", 500, 500), placeholderImage("actcet-stargaze-2", 500, 500)],
       },
       {
@@ -184,7 +184,7 @@ export const yearEvents: YearEvents[] = [
         participants: "250+",
         objective: "Explore current research on active galactic nuclei with guest experts.",
         outcome: "250+ attendees across the online research webinar.",
-        image: placeholderImage("actcet-agn-webinar", 640, 420),
+        image: "/images/Actcet%20Images/actet%202025-2026/AGN%20WEBINAR/AGN%202025.png",
         gallery: [placeholderImage("actcet-agn-1", 500, 500)],
       },
     ],
@@ -204,7 +204,7 @@ export const yearEvents: YearEvents[] = [
         participants: "280+",
         objective: "Celebrate National Space Day with exhibits and expert talks.",
         outcome: "Flagship annual space-science festival for the year.",
-        image: placeholderImage("actcet-antariksh-2024", 640, 420),
+        image: "/images/Actcet%20Images/actcet%202024-2025/OUTREACH%20AT%20GUNDECHA/GUNDECHA.jpeg",
         gallery: [placeholderImage("actcet-antariksh-1", 500, 500), placeholderImage("actcet-antariksh-2", 500, 500)],
       },
       {
@@ -217,7 +217,7 @@ export const yearEvents: YearEvents[] = [
         participants: "—",
         objective: "Launch ACTCET's first podcast season.",
         outcome: "First season of the club's podcast published.",
-        image: placeholderImage("actcet-astroverse-s1", 640, 420),
+        image: "/images/Actcet%20Images/actcet%202024-2025/OUTREACH%20AT%20TP%20BHATIA/TP%20BHATIA.jpeg",
         gallery: [placeholderImage("actcet-astroverse-s1-1", 500, 500)],
       },
       {
@@ -230,7 +230,7 @@ export const yearEvents: YearEvents[] = [
         participants: "140+",
         objective: "Introduce school students to observational astronomy.",
         outcome: "140+ students reached through the outreach drive.",
-        image: placeholderImage("actcet-brahmaand-2024", 640, 420),
+        image: "/images/Actcet%20Images/ACTCET%202023-2024/brahmaan%202023%20-%202024.jpg.jpeg",
         gallery: [placeholderImage("actcet-brahmaand-2024-1", 500, 500)],
       },
       {
@@ -243,7 +243,7 @@ export const yearEvents: YearEvents[] = [
         participants: "180+",
         objective: "Host space-themed competitions during TCET's annual fest.",
         outcome: "180+ participants across quiz and challenge rounds.",
-        image: placeholderImage("actcet-zephyr-2025", 640, 420),
+        image: "/images/Actcet%20Images/actcet%202024-2025/ZEPHYR%20ROCKET%20BLITZ/ROCKET%20BLITZ.jpeg",
         gallery: [placeholderImage("actcet-zephyr-2025-1", 500, 500)],
       },
     ],

@@ -12,8 +12,15 @@ export default function Podcast() {
         </h2>
 
         <div className="grid md:grid-cols-2 gap-12 items-center">
-          <div className="rounded-xl2 h-[340px] flex items-center justify-center text-white/70 font-label text-sm shadow-soft bg-gradient-to-br from-navy to-primary">
-            Spotify Embed Placeholder
+          <div className="rounded-xl2 overflow-hidden h-[340px] shadow-soft bg-navy">
+            <iframe
+              src="https://www.youtube.com/embed?listType=user&list=actcet"
+              title="ACTCET YouTube videos"
+              className="w-full h-full border-0"
+              loading="lazy"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+            />
           </div>
 
           <div>

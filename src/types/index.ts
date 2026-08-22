@@ -83,4 +83,5 @@ export interface ContactItem {
   icon: "mail" | "instagram" | "linkedin" | "youtube" | "music" | "map-pin";
   label: string;
   value: string;
+  href?: string;
 }

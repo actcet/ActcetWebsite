@@ -37,7 +37,7 @@ export default function IsroAssociation() {
               <div className="flex items-center justify-between gap-4 mb-8">
                 <div className="flex items-center gap-3">
                   <div className="w-14 h-14 rounded-2xl bg-white flex items-center justify-center p-2 shadow-lg">
-                    <img src="/images/isro.png" alt="ISRO" className="max-h-full max-w-full object-contain" />
+                    <img src="/images/Actcet%20Images/IMP%20LOGO/ISRO%20SPACE%20TUTOR%20LOGO%20(1).png" alt="ISRO" className="max-h-full max-w-full object-contain" />
                   </div>
                   <div>
                     <p className="font-label text-[0.65rem] tracking-[0.12em] uppercase text-mint-bright font-bold">
