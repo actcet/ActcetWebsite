@@ -23,7 +23,7 @@ export default function Journey() {
           Journey Through the Cosmos
         </h2>
         <p className="text-ink-soft max-w-xl text-[1.05rem] mb-6">
-          Four years of orbits, outreach, and discovery — click a year to explore its missions.
+          Five academic years of orbits, outreach, and discovery — click a year to explore its missions.
         </p>
 
         <div className="flex items-center justify-end gap-2 mb-2 md:mb-0">

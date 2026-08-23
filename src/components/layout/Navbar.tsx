@@ -171,10 +171,12 @@ export default function Navbar() {
 
           <Button
             variant="primary"
-            href="#events"
+            href="https://online.pubhtml5.com/kjslb/gias/"
+            target="_blank"
+            rel="noreferrer"
             className="!px-5 !py-2.5"
           >
-            Explore Events
+            View Our Booklet
           </Button>
         </div>
 
