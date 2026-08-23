@@ -68,6 +68,7 @@ export interface PodcastEpisode {
   id: string;
   title: string;
   description: string;
+  videoId?: string;
 }
 
 export interface StatItem {

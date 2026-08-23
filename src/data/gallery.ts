@@ -15,7 +15,7 @@ const galleryAssets = {
     ["TP Bhatia Outreach", "/images/Actcet%20Images/actcet%202024-2025/OUTREACH%20AT%20TP%20BHATIA/TP%20BHATIA.jpeg"],
     ["Rocket Blitz", "/images/Actcet%20Images/actcet%202024-2025/ZEPHYR%20ROCKET%20BLITZ/ROCKET%20BLITZ.jpeg"],
   ],
-  "2023–24": [["Brahmaand Outreach", "/images/Actcet%20Images/ACTCET%202023-2024/brahmaan%202023%20-%202024.jpg.jpeg"]],
+  "2023–24": [["Brahmaand Outreach", "/images/Actcet%20Images/ACTCET%202022-2023/brahmaan%202023%20-%202024.jpg.jpeg"]],
   "2022–23": [],
 } satisfies Record<string, [string, string][]>;
 

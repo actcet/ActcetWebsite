@@ -230,7 +230,7 @@ export const yearEvents: YearEvents[] = [
         participants: "140+",
         objective: "Introduce school students to observational astronomy.",
         outcome: "140+ students reached through the outreach drive.",
-        image: "/images/Actcet%20Images/ACTCET%202023-2024/brahmaan%202023%20-%202024.jpg.jpeg",
+        image: "/images/Actcet%20Images/ACTCET%202022-2023/brahmaan%202023%20-%202024.jpg.jpeg",
         gallery: [placeholderImage("actcet-brahmaand-2024-1", 500, 500)],
       },
       {

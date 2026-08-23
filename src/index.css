@@ -18,6 +18,12 @@ body {
   @apply bg-bg text-ink font-body antialiased;
 }
 
+p,
+li {
+  text-align: justify;
+  text-justify: inter-word;
+}
+
 ::-webkit-scrollbar {
   width: 10px;
 }
