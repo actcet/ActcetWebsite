@@ -5,25 +5,25 @@ export default {
   theme: {
     extend: {
       colors: {
-        bg: "#F1F7FA",
-        "bg-alt": "#E4EFF4",
-        surface: "#FFFFFF",
+        bg: "#070d1f",
+        "bg-alt": "#0b1530",
+        surface: "#111d3b",
         navy: {
           DEFAULT: "#0A192F",
           2: "#112240",
         },
         primary: {
-          DEFAULT: "#2596be",
-          dark: "#1b7699",
-          light: "#5db8d9",
+          DEFAULT: "#1336d4",
+          dark: "#0d2597",
+          light: "#4d6cf0",
         },
         mint: {
-          DEFAULT: "#3fd8b8",
-          bright: "#64FFDA",
+          DEFAULT: "#4b8dff",
+          bright: "#8ca8ff",
         },
         ink: {
-          DEFAULT: "#152435",
-          soft: "#516779",
+          DEFAULT: "#edf2ff",
+          soft: "#b5c2e0",
         },
       },
       fontFamily: {

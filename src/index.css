@@ -3,25 +3,65 @@
 @tailwind utilities;
 
 :root {
+  color-scheme: dark;
   --navbar-bg-top: rgba(6, 14, 28, 0);
   --navbar-bg-scrolled: rgba(6, 14, 28, 0.84);
   --navbar-text: rgba(255, 255, 255, 0.96);
   --navbar-text-muted: rgba(221, 236, 244, 0.8);
-  --navbar-accent: #2596be;
+  --navbar-accent: #1336d4;
 }
 
 html {
   scroll-behavior: smooth;
+  background-color: #070d1f;
 }
 
 body {
   @apply bg-bg text-ink font-body antialiased;
+  background-color: #070d1f;
 }
 
-p,
-li {
+.bg-bg {
+  background-color: #070d1f !important;
+}
+
+.bg-bg-alt {
+  background-color: #0b1530 !important;
+}
+
+.bg-surface {
+  background-color: #111d3b !important;
+}
+
+.text-navy {
+  color: #edf2ff !important;
+}
+
+.text-ink {
+  color: #edf2ff !important;
+}
+
+.text-ink-soft {
+  color: #b5c2e0 !important;
+}
+
+.text-primary {
+  color: #8ca8ff !important;
+}
+
+.bg-white,
+.bg-\[\#edf3f6\],
+.bg-\[\#edf5f7\] {
+  color: #0a192f !important;
+}
+
+p {
   text-align: justify;
   text-justify: inter-word;
+}
+
+li {
+  text-align: left;
 }
 
 ::-webkit-scrollbar {

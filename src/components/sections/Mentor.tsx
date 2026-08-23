@@ -19,7 +19,7 @@ export default function Mentor() {
         <Reveal>
           <Card className="grid md:grid-cols-[260px_1fr] gap-10 items-center p-8 md:p-12 text-center md:text-left">
             <img
-              src="/images/image-removebg-preview.png"
+              src={mentor.photo}
               alt={mentor.name}
               className="w-[220px] h-[220px] rounded-full object-contain bg-[#edf5f7] border-4 border-white shadow-soft mx-auto md:mx-0"
             />

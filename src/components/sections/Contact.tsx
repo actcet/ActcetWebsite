@@ -48,7 +48,7 @@ export default function Contact() {
             })}
           </div>
 
-          <div className="rounded-xl2 min-h-[320px] h-full overflow-hidden border border-navy/[0.09] bg-white shadow-soft">
+          <div className="rounded-xl2 min-h-[320px] h-full overflow-hidden border border-white/10 bg-surface shadow-soft">
             <iframe
               src="https://www.google.com/maps/embed?pb=!1m17!1m12!1m3!1d4017.9457178717944!2d72.8719990754001!3d19.206377047866255!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m2!1m1!2zMTnCsDEyJzIyLjkiTiA3MsKwNTInMjguNSJF!5e1!3m2!1sen!2sin!4v1787401617484!5m2!1sen!2sin"
               title="ACTCET location at Thakur College of Engineering and Technology"

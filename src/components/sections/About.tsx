@@ -69,7 +69,7 @@ export default function About() {
               interest in astronomy, where they can provide support to one another and deepen their understanding of
               the subject.
             </p>
-            <div className="mt-10 w-full max-w-xl rounded-xl2 bg-white/45 p-2 shadow-[0_8px_24px_rgba(10,25,47,0.06)]">
+            <div className="mt-10 w-full max-w-xl rounded-xl2 bg-surface/80 p-2 shadow-[0_8px_24px_rgba(0,0,0,0.3)]">
               <img
                 src="/images/image.png"
                 alt="ACTCET students attending a space science outreach session"
@@ -83,7 +83,7 @@ export default function About() {
               {missionItems.map((item) => (
                 <div
                   key={item.num}
-                  className="flex min-h-[220px] gap-4 items-start rounded-xl2 border border-navy/[0.08] bg-white/80 p-5 md:p-6 shadow-[0_8px_24px_rgba(10,25,47,0.06)]"
+                  className="flex min-h-[220px] gap-4 items-start rounded-xl2 border border-white/10 bg-[#111d3b] p-5 md:p-6 shadow-[0_8px_24px_rgba(0,0,0,0.3)]"
                 >
                   <div className="font-display font-bold text-primary text-xl min-w-[38px]">{item.num}</div>
                   <div className="min-w-0">

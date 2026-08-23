@@ -46,11 +46,12 @@ export default function Hero() {
         </div>
 
         <h1 className="text-white font-display font-bold leading-[1.12] text-[clamp(2.1rem,5.2vw,4.1rem)] mb-5">
-          Astronomy Club of
-          <br />
           <span className="bg-gradient-to-r from-mint-bright to-primary bg-clip-text text-transparent">
-            Thakur College
+          Astronomy Club 
           </span>{" "}
+          of
+          <br />
+          Thakur College
           of Engineering &amp; Technology
         </h1>
 

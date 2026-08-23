@@ -54,7 +54,7 @@ export default function Committee() {
               The students shaping our next orbit through curiosity, collaboration, and action.
             </p>
           </div>
-          <div className="flex items-center gap-3 self-start md:self-auto rounded-full border border-primary/15 bg-white/70 px-4 py-2.5 shadow-sm">
+          <div className="flex items-center gap-3 self-start md:self-auto rounded-full border border-primary/25 bg-surface/80 px-4 py-2.5 shadow-sm">
             <Users size={18} className="text-primary" />
             <span className="font-label text-sm font-semibold text-navy">2026–27 · 17 members</span>
           </div>
