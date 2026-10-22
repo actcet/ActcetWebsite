@@ -22,85 +22,98 @@ npm run preview
 ## Firebase
 
 The Firebase app, Authentication, and Firestore clients are exported from
-`src/lib/firebase.ts`. The member frontend is intentionally not included; the
-teammate building it should use the following contract. The portal backend is
-designed to stay on Firebase's Spark plan and does not use Cloud Functions.
+`src/lib/firebase.ts`; import `auth` and `db` from `@/lib/firebase`. The member
+portal UI is not included. The contract below is enforced by Firestore Rules
+and is designed to run on Firebase's Spark plan without Cloud Functions or
+service-account credentials in the browser.
 
-### Member data and client permissions
+### Registration and approval
 
-- A member profile lives at `members/{firebaseAuthUid}`. The document ID must be
-  the signed-in Firebase Authentication user's UID.
-- Profile fields: `fullName`, `collegeEmail`, `rollNumber`, `className`,
-  `division`, `academicYear`, `phoneNumber`, `profilePhotoUrl`,
-  `membershipStatus` (`pending`, `active`, `inactive`), `role`
-  (`member`, `core_team`, `wc`), `aicteHours`, `createdAt`, and `updatedAt`.
-- Event signups and attendance live in
+- Enable **Authentication → Sign-in method → Email/Password** and public
+  account creation. The registration UI must accept only addresses ending in
+  `@tcetmumbai.in`. Use `registerMemberAccount(email, password)` from
+  `@/lib/member-auth` to create the Auth account, send the verification email,
+  and sign out until verification is complete.
+- After the user verifies their email and signs in again (or refreshes the
+  Auth user/token), call `submitMemberApplication(details)` from
+  `@/lib/member-auth`. It refreshes the Auth token and creates a profile at
+  `members/{firebaseAuthUid}`. The document ID and `collegeEmail` must match
+  the verified Auth UID and email. On initial creation the Rules require
+  `membershipStatus: "pending"`, `role: "member"`, `aicteHours: 0`, and
+  `createdAt`/`updatedAt` from `serverTimestamp()`.
+- Pending and rejected applicants can read only their own profile/status.
+  They cannot read registrations or member data. An active member can read
+  their own profile and registrations, and update only `phoneNumber`,
+  `profilePhotoUrl`, and `updatedAt`.
+- Firebase Auth on Spark has no blocking hook to reject an out-of-domain
+  account at account-creation time. The UI must reject it before signup, while
+  Firestore Rules independently reject unverified or non-`@tcetmumbai.in`
+  users from registering or accessing member data. This is the strongest
+  domain restriction available without upgrading to a paid Auth feature.
+
+### Admin and Core Team permissions
+
+- The Chairperson's verified Auth UID is the sole initial Admin. Admin access
+  is granted by the trusted document `accessControl/{uid}` with `role: "admin"`.
+  Bootstrap this record in Firebase Console; no client can grant Admin access.
+- Only Admin can list/review pending profiles and change `membershipStatus`
+  (`pending`, `active`, `inactive`, `rejected`). A Core Team member cannot
+  approve or reject anyone, including themself.
+- Admin can assign Core Team access by first setting an approved member's
+  profile `role` to `core_team`, then creating
+  `accessControl/{uid}` with `role: "coreTeam"`. To revoke it, delete that
+  access-control document and change the profile role as appropriate. Rules
+  authorize Core Team from the trusted access-control record plus the
+  associated profile being active and having `role: "core_team"`; a profile
+  role alone never grants access.
+- Core Team can manage active member records and their nested registrations,
+  including attendance and AICTE hours, but cannot change profile roles,
+  approval status, access-control records, or delete member profiles.
+  Core Team member-list queries must filter `membershipStatus == "active"`;
+  only Admin can review pending/rejected applications.
+- Admin can read/manage members and assign/revoke Core Team access. Admin
+  access-control records cannot be created, updated, or deleted through the
+  app; provision the Chairperson's Admin record in Firebase Console. Existing
+  `eventManager` access remains separate and limited to event management.
+- CoreTeam members must be verified and approved. The UI should refresh the
+  Auth user after email verification and handle permission-denied responses;
+  Firestore Rules, not hidden UI controls, are authoritative.
+
+### Profile and registration data
+
+- Profile path: `members/{firebaseAuthUid}`. Required fields:
+  `fullName`, `collegeEmail`, `rollNumber`, `className`, `division`,
+  `academicYear`, `phoneNumber`, `profilePhotoUrl`, `membershipStatus`,
+  `role`, `aicteHours`, `createdAt`, and `updatedAt`.
+- Profile `role` values: `member`, `core_team`, `wc`. Approval statuses:
+  `pending`, `active`, `inactive`, `rejected`.
+- Event registrations and attendance:
   `members/{uid}/registrations/{registrationId}` with `eventId`, `eventName`,
   `registrationDate`, `registrationDetails`, `attended`, and `updatedAt`.
-- A verified member can read only their own profile and registrations. From the
-  client they may update only their own `phoneNumber` and `profilePhotoUrl`;
-  use Firestore `serverTimestamp()` for `updatedAt`. Photo values are HTTPS
-  URLs; file upload/storage rules are not included.
-- Require `user.emailVerified` in the member frontend. After sign-in, send
-  `sendEmailVerification(user)` when needed; refresh the user before loading the
-  profile so the verified-email rule can be evaluated.
-- A verified user whose UID has an owner-managed
-  `accessControl/{uid}` document with `role: "coreTeam"` can read, create,
-  update, and delete all member documents and nested club records. Core Team
-  can manage academic details, membership, AICTE hours, attendance, and other
-  club fields, but cannot change the privileged `role` field.
-- A verified user whose UID has `accessControl/{uid}` with `role: "admin"` has
-  full member-record permissions, including role changes. An
-  `eventManager` role can manage events. These role documents are never
-  readable or writable through client SDKs; Firestore Rules consult them as
-  trusted authorization data.
-- Only someone with Firebase project IAM access (the owner/admin in Firebase
-  Console) should create or edit `accessControl` documents. Console/IAM access
-  is distinct from portal access: only UIDs explicitly added there receive
-  Admin or Core Team rules permissions.
-- Do not enable public account creation. Create member Auth accounts in
-  Firebase Console (Authentication → Users → Add user), then create matching
-  `members/{uid}` documents using the exact Auth UID. Send members password
-  reset emails to set their passwords.
+- Member photo fields accept HTTPS URLs; Firebase Storage upload/rules are not
+  configured.
+- Public event queries must filter on `status == "published"`. The `(default)`
+  Standard Firestore database is in `asia-south1`.
 
-The frontend should use `signInWithEmailAndPassword`, `signOut`,
-`onAuthStateChanged`, Firestore reads and member-allowed phone/photo updates.
-Access-control documents are intentionally unreadable from client SDKs. To
-show role-specific UI, probe an operation that requires the permission (for
-example, read a known member UID other than the current user's UID) and show
-management tools only if it succeeds. Handle permission-denied as an ordinary
-member result; the Firestore Rules remain authoritative if the UI is bypassed.
-Import `auth` and `db` from `@/lib/firebase`. Never ship service-account
-credentials to the browser.
+### Chairperson setup
 
-### Spark-plan access setup
-
-1. In Firebase Console for `astronomytcet-206c1`, enable **Authentication →
-   Sign-in method → Email/Password**. Add `localhost` and deployed website
-   domains under Authentication's authorized domains. Keep public sign-up off.
-2. Add the owner and each Core Team member under **Authentication → Users**.
-   Require and complete email verification.
-3. In **Firestore → Data**, create an `accessControl` collection. For the
-   owner's Auth account, add a document whose ID is that account's exact Auth
-   UID and whose field is `role: "admin"`. For each approved Core Team member,
-   add a document using their exact Auth UID and `role: "coreTeam"`. Add
-   `role: "eventManager"` only for event editors. Never let users create or edit
-   these access-control documents through the portal.
-4. Create each member profile at `members/{authUid}`. The `role` values are
-   `member`, `core_team`, or `wc`; only an `admin` can assign `core_team`.
-   Core Team can create profile documents and can manage their fields, but
-   cannot provision Firebase Auth users on Spark. Project admins must create
-   Auth users in the Console and share password-reset emails.
-5. Members and Core Team users sign in with their email/password account. If
-   role access is changed, sign out and back in before testing it.
+1. In Firebase Console for `astronomytcet-206c1`, enable Email/Password
+   Authentication and add `localhost` plus deployed website domains under
+   **Authorized domains**.
+2. Create/verify the Chairperson's `@tcetmumbai.in` Auth account. In
+   **Firestore → Data**, create `accessControl/{chairpersonAuthUid}` with the
+   single field `role: "admin"`. The exact Auth UID is required.
+3. The Chairperson adds Core Team access through the portal's trusted Admin
+   workflow. Admin provisioning itself remains Console-only. Create member
+   accounts through public signup and require verification/approval.
 
 ### Rules tests
 
-Run `npm run test:rules` to start the Firestore Emulator and verify member
-isolation, restricted self-updates, Core Team CRUD for profiles and nested
-club records, role-escalation denial, console-managed access-control
-protection, Admin access, and published-event reads. Tests use a demo project
-and do not modify production data.
+Run `npm run test:rules` to start the Firestore Emulator and validate verified
+domain registration, UID matching, pending/rejected isolation, Admin approval
+and rejection, self-update limits, Core Team permissions, trusted role
+assignment/revocation, event-manager separation, and published-event reads.
+The tests use a demo project and do not modify production data.
 
 Public event queries must filter on `status == "published"`. The `(default)`
 Standard database is in `asia-south1`; Firestore rules are in `firestore.rules`.

@@ -2,21 +2,23 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Assumed model:
-    // accessControl/{authUid}: role is "admin", "coreTeam", or "eventManager".
-    // Firebase Console/IAM administrators manage these records; all client
-    // reads and writes are denied. Never store the authoritative role on a
-    // member-editable profile.
-    // members/{authUid}: profile and club fields; members may edit only their
-    // own phoneNumber and profilePhotoUrl. Nested club records are private.
+    // accessControl/{uid} is trusted authorization data. The Chairperson's
+    // initial admin record is provisioned in Firebase Console.
+    // members/{uid} is the Auth user's application and approval record.
     function signedIn() {
       return request.auth != null;
     }
 
-    function hasAccessRole(role) {
+    function verifiedCollegeAccount() {
       return signedIn() &&
         'email_verified' in request.auth.token &&
         request.auth.token.email_verified == true &&
+        'email' in request.auth.token &&
+        request.auth.token.email.matches('^[^\\s@]+@tcetmumbai\\.in$');
+    }
+
+    function hasAccessRole(role) {
+      return verifiedCollegeAccount() &&
         exists(/databases/$(database)/documents/accessControl/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/accessControl/$(request.auth.uid)).data.role == role;
     }
@@ -26,15 +28,19 @@ service cloud.firestore {
     }
 
     function isCoreTeam() {
-      return hasAccessRole('coreTeam');
-    }
-
-    function canManageMembers() {
-      return isAdmin() || isCoreTeam();
+      return hasAccessRole('coreTeam') &&
+        exists(/databases/$(database)/documents/members/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/members/$(request.auth.uid)).data.membershipStatus == 'active' &&
+        get(/databases/$(database)/documents/members/$(request.auth.uid)).data.role == 'core_team';
     }
 
     function isEventManager() {
       return isAdmin() || isCoreTeam() || hasAccessRole('eventManager');
+    }
+
+    function isApprovedMember(memberId) {
+      return exists(/databases/$(database)/documents/members/$(memberId)) &&
+        get(/databases/$(database)/documents/members/$(memberId)).data.membershipStatus == 'active';
     }
 
     function validMember(data, memberId) {
@@ -57,7 +63,7 @@ service cloud.firestore {
         data.fullName.size() > 0 &&
         data.fullName.size() <= 120 &&
         data.collegeEmail is string &&
-        data.collegeEmail.matches('^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$') &&
+        data.collegeEmail.matches('^[^\\s@]+@tcetmumbai\\.in$') &&
         data.rollNumber is string &&
         data.rollNumber.size() > 0 &&
         data.rollNumber.size() <= 40 &&
@@ -76,7 +82,7 @@ service cloud.firestore {
         data.profilePhotoUrl.size() <= 2048 &&
         (data.profilePhotoUrl == '' ||
           data.profilePhotoUrl.matches('^https://[^\\s]+$')) &&
-        data.membershipStatus in ['pending', 'active', 'inactive'] &&
+        data.membershipStatus in ['pending', 'active', 'inactive', 'rejected'] &&
         data.role in ['member', 'core_team', 'wc'] &&
         data.aicteHours is number &&
         data.aicteHours >= 0 &&
@@ -84,6 +90,33 @@ service cloud.firestore {
         data.createdAt is timestamp &&
         data.updatedAt is timestamp &&
         memberId is string;
+    }
+
+    function validSelfRegistration(data, memberId) {
+      return verifiedCollegeAccount() &&
+        request.auth.uid == memberId &&
+        data.keys().hasOnly([
+          'fullName',
+          'collegeEmail',
+          'rollNumber',
+          'className',
+          'division',
+          'academicYear',
+          'phoneNumber',
+          'profilePhotoUrl',
+          'membershipStatus',
+          'role',
+          'aicteHours',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        validMember(data, memberId) &&
+        data.collegeEmail == request.auth.token.email &&
+        data.membershipStatus == 'pending' &&
+        data.role == 'member' &&
+        data.aicteHours == 0 &&
+        data.createdAt == request.time &&
+        data.updatedAt == request.time;
     }
 
     function validEvent(eventId) {
@@ -151,43 +184,52 @@ service cloud.firestore {
     }
 
     match /accessControl/{userId} {
-      allow read, write: if false;
+      allow get, list: if isAdmin();
+      allow create, update: if isAdmin() &&
+        request.resource.data.keys().hasOnly(['role']) &&
+        request.resource.data.keys().hasAll(['role']) &&
+        request.resource.data.role in ['coreTeam', 'eventManager'] &&
+        exists(/databases/$(database)/documents/members/$(userId)) &&
+        get(/databases/$(database)/documents/members/$(userId)).data.membershipStatus == 'active' &&
+        (
+          request.resource.data.role != 'coreTeam' ||
+          get(/databases/$(database)/documents/members/$(userId)).data.role == 'core_team'
+        );
+      allow delete: if isAdmin() &&
+        resource.data.role in ['coreTeam', 'eventManager'];
     }
 
     match /members/{memberId} {
-      allow get, list: if canManageMembers() ||
-        (signedIn() && request.auth.uid == memberId &&
-          request.auth.token.email_verified == true);
-      allow create: if validMember(request.resource.data, memberId) &&
-        (
-          (isAdmin() && request.resource.data.role in ['member', 'core_team', 'wc']) ||
-          (isCoreTeam() && request.resource.data.role in ['member', 'wc'])
-        );
-      allow update: if signedIn() &&
-        (
-          (isAdmin() &&
-            validMember(request.resource.data, memberId)) ||
-          (isCoreTeam() &&
-            (
-              request.resource.data.role == resource.data.role ||
-              (resource.data.role != 'core_team' &&
-                request.resource.data.role in ['member', 'wc'])
-            ) &&
-            validMember(request.resource.data, memberId)) ||
-          (request.auth.uid == memberId &&
-            request.auth.token.email_verified == true &&
-            request.resource.data.diff(resource.data).affectedKeys()
-              .hasOnly(['phoneNumber', 'profilePhotoUrl', 'updatedAt']) &&
-            request.resource.data.updatedAt == request.time &&
-            validMember(request.resource.data, memberId))
-        );
-      allow delete: if canManageMembers();
+      allow get: if isAdmin() ||
+        (isCoreTeam() && resource.data.membershipStatus == 'active') ||
+        (verifiedCollegeAccount() && request.auth.uid == memberId);
+      allow list: if isAdmin() ||
+        (isCoreTeam() && resource.data.membershipStatus == 'active');
+      allow create: if validSelfRegistration(request.resource.data, memberId) ||
+        (isAdmin() && validMember(request.resource.data, memberId));
+      allow update: if
+        (isAdmin() && validMember(request.resource.data, memberId)) ||
+        (isCoreTeam() &&
+          resource.data.membershipStatus == 'active' &&
+          request.resource.data.membershipStatus == resource.data.membershipStatus &&
+          request.resource.data.role == resource.data.role &&
+          validMember(request.resource.data, memberId)) ||
+        (verifiedCollegeAccount() &&
+          request.auth.uid == memberId &&
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['phoneNumber', 'profilePhotoUrl', 'updatedAt']) &&
+          request.resource.data.updatedAt == request.time &&
+          validMember(request.resource.data, memberId));
+      allow delete: if isAdmin();
 
       match /{memberCollection}/{memberDocument=**} {
-        allow read: if canManageMembers() ||
-          (signedIn() && request.auth.uid == memberId &&
-            request.auth.token.email_verified == true);
-        allow create, update, delete: if canManageMembers();
+        allow read: if isAdmin() ||
+          (isCoreTeam() && isApprovedMember(memberId)) ||
+          (verifiedCollegeAccount() &&
+            request.auth.uid == memberId &&
+            isApprovedMember(memberId));
+        allow create, update, delete: if isAdmin() ||
+          (isCoreTeam() && isApprovedMember(memberId));
       }
     }
 
