@@ -1,18 +1,90 @@
-rules_version='2'
+rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    // events/{eventId}: EventItem fields plus status ("draft" or "published").
+    // members/{uid}: private member document; schema and client writes are not
+    // enabled until member fields and an authenticated write flow are defined.
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isEventManager() {
+      return signedIn() &&
+        'eventManager' in request.auth.token &&
+        request.auth.token.eventManager == true;
+    }
+
+    function validEvent(eventId) {
+      let data = request.resource.data;
+      return data.keys().hasAll([
+          'id',
+          'name',
+          'date',
+          'location',
+          'domain',
+          'category',
+          'participants',
+          'objective',
+          'outcome',
+          'image',
+          'gallery',
+          'status'
+        ]) &&
+        data.keys().hasOnly([
+          'id',
+          'name',
+          'date',
+          'location',
+          'domain',
+          'category',
+          'participants',
+          'objective',
+          'outcome',
+          'image',
+          'gallery',
+          'status'
+        ]) &&
+        data.id is string &&
+        data.id == eventId &&
+        data.name is string &&
+        data.name.size() > 0 &&
+        data.name.size() <= 160 &&
+        data.date is string &&
+        data.date.size() > 0 &&
+        data.date.size() <= 100 &&
+        data.location is string &&
+        data.location.size() <= 200 &&
+        data.domain is string &&
+        data.domain.size() <= 80 &&
+        data.category is string &&
+        data.category.size() <= 80 &&
+        data.participants is string &&
+        data.participants.size() <= 80 &&
+        data.objective is string &&
+        data.objective.size() <= 2000 &&
+        data.outcome is string &&
+        data.outcome.size() <= 2000 &&
+        data.image is string &&
+        data.image.size() <= 2048 &&
+        data.gallery is list &&
+        data.gallery.size() <= 30 &&
+        data.status in ['draft', 'published'];
+    }
+
+    match /events/{eventId} {
+      allow get, list: if isEventManager() ||
+        resource.data.status == 'published';
+      allow create, update: if isEventManager() && validEvent(eventId);
+      allow delete: if isEventManager();
+    }
+
+    match /members/{memberId} {
+      allow get: if signedIn() && request.auth.uid == memberId;
+    }
+
     match /{document=**} {
-      // This rule allows anyone with your database reference to view, edit,
-      // and delete all data in your database. It is useful for getting
-      // started, but it is configured to expire after 30 days because it
-      // leaves your app open to attackers. At that time, all client
-      // requests to your database will be denied.
-      //
-      // Make sure to write security rules for your app before that time, or
-      // else all client requests to your database will be denied until you
-      // update your rules.
-      allow read, write: if request.time < timestamp.date(2026, 8, 25);
+      allow read, write: if false;
     }
   }
 }
