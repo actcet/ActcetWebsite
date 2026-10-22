@@ -36,3 +36,46 @@ type EventRSVP @table {
   status: String!
   event: Event!
 }
+
+enum PortalApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+type PortalUser @table {
+  firebaseAuthUid: String! @unique
+  name: String!
+  email: String!
+  branch: String!
+  division: String!
+  year: Int!
+  academicYear: String!
+  requestedRole: String!
+  approvedRole: String
+  approvalStatus: PortalApprovalStatus! @default(value: PENDING)
+  createdAt: Timestamp! @default(expr: "request.time")
+  approvedAt: Timestamp
+  approvedBy: String
+}
+
+type PortalAttendance @table @unique(fields: ["member", "event"]) {
+  memberId: UUID!
+  member: PortalUser! @ref(fields: "memberId", references: "id")
+  eventId: UUID!
+  event: Event! @ref(fields: "eventId", references: "id")
+  attended: Boolean! @default(value: false)
+  updatedAt: Timestamp! @default(expr: "request.time")
+  updatedBy: String
+}
+
+type EventAICTE @table {
+  eventId: UUID! @unique
+  event: Event! @ref(fields: "eventId", references: "id")
+  aicteHours: Float!
+}
+
+type PortalSettings @table {
+  currentAcademicYear: String!
+  hoursPerAICTEPoint: Float! @default(value: 4)
+}
