@@ -2,17 +2,91 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // events/{eventId}: EventItem fields plus status ("draft" or "published").
-    // members/{uid}: private member document; schema and client writes are not
-    // enabled until member fields and an authenticated write flow are defined.
+    // Assumed model:
+    // members/{authUid}: profile and club-managed fields. Members may edit only
+    // phoneNumber and profilePhotoUrl. Core Team may manage member data but
+    // cannot change the role field or grant privileges.
+    // members/{authUid}/{subcollection}/{document}: private member-related
+    // records such as registrations and attendance. Core Team manages these.
     function signedIn() {
       return request.auth != null;
+    }
+
+    function isProjectOwner() {
+      return signedIn() &&
+        'email' in request.auth.token &&
+        'email_verified' in request.auth.token &&
+        'admin' in request.auth.token &&
+        request.auth.token.email == 'actcet@tcetmumbai.in' &&
+        request.auth.token.email_verified == true &&
+        request.auth.token.admin == true;
+    }
+
+    function isCoreTeam() {
+      return signedIn() &&
+        'email_verified' in request.auth.token &&
+        'coreTeam' in request.auth.token &&
+        request.auth.token.email_verified == true &&
+        request.auth.token.coreTeam == true;
+    }
+
+    function canManageMembers() {
+      return isProjectOwner() || isCoreTeam();
     }
 
     function isEventManager() {
       return signedIn() &&
         'eventManager' in request.auth.token &&
         request.auth.token.eventManager == true;
+    }
+
+    function validMember(data, memberId) {
+      return data.keys().hasAll([
+          'fullName',
+          'collegeEmail',
+          'rollNumber',
+          'className',
+          'division',
+          'academicYear',
+          'phoneNumber',
+          'profilePhotoUrl',
+          'membershipStatus',
+          'role',
+          'aicteHours',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.fullName is string &&
+        data.fullName.size() > 0 &&
+        data.fullName.size() <= 120 &&
+        data.collegeEmail is string &&
+        data.collegeEmail.matches('^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$') &&
+        data.rollNumber is string &&
+        data.rollNumber.size() > 0 &&
+        data.rollNumber.size() <= 40 &&
+        data.className is string &&
+        data.className.size() > 0 &&
+        data.className.size() <= 40 &&
+        data.division is string &&
+        data.division.size() > 0 &&
+        data.division.size() <= 20 &&
+        data.academicYear is string &&
+        data.academicYear.size() > 0 &&
+        data.academicYear.size() <= 20 &&
+        data.phoneNumber is string &&
+        data.phoneNumber.size() <= 30 &&
+        data.profilePhotoUrl is string &&
+        data.profilePhotoUrl.size() <= 2048 &&
+        (data.profilePhotoUrl == '' ||
+          data.profilePhotoUrl.matches('^https://[^\\s]+$')) &&
+        data.membershipStatus in ['pending', 'active', 'inactive'] &&
+        data.role in ['member', 'core_team', 'wc'] &&
+        data.aicteHours is number &&
+        data.aicteHours >= 0 &&
+        data.aicteHours <= 5000 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp &&
+        memberId is string;
     }
 
     function validEvent(eventId) {
@@ -80,7 +154,32 @@ service cloud.firestore {
     }
 
     match /members/{memberId} {
-      allow get: if signedIn() && request.auth.uid == memberId;
+      allow get, list: if canManageMembers() ||
+        (signedIn() && request.auth.uid == memberId &&
+          request.auth.token.email_verified == true);
+      allow create: if canManageMembers() &&
+        request.resource.data.role in ['member', 'wc'] &&
+        validMember(request.resource.data, memberId);
+      allow update: if signedIn() &&
+        (
+          (canManageMembers() &&
+            request.resource.data.role == resource.data.role &&
+            validMember(request.resource.data, memberId)) ||
+          (request.auth.uid == memberId &&
+            request.auth.token.email_verified == true &&
+            request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['phoneNumber', 'profilePhotoUrl', 'updatedAt']) &&
+            request.resource.data.updatedAt == request.time &&
+            validMember(request.resource.data, memberId))
+        );
+      allow delete: if canManageMembers();
+
+      match /{memberCollection}/{memberDocument=**} {
+        allow read: if canManageMembers() ||
+          (signedIn() && request.auth.uid == memberId &&
+            request.auth.token.email_verified == true);
+        allow create, update, delete: if canManageMembers();
+      }
     }
 
     match /{document=**} {

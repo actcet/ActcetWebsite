@@ -3,3 +3,5 @@ dist
 *.tsbuildinfo
 .DS_Store
 .ts-build
+firebase-debug.log
+firestore-debug.log
