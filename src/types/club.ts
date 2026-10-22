@@ -31,14 +31,16 @@ export type UserRole =
   | "Guest";
 
 export type ApprovalStatus = "pending" | "approved" | "rejected";
+export type AccountType = "member" | "club_admin";
 
 export interface Member {
   id: string;
   name: string;
-  branch: Branch;
-  division: Division;
-  year: StudyYear;
-  academicYear: string;
+  accountType: AccountType;
+  branch: Branch | null;
+  division: Division | null;
+  year: StudyYear | null;
+  academicYear: string | null;
   email: string;
   role: UserRole;
   requestedRole: UserRole;

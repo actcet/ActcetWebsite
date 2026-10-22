@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from "react";
-import { onIdTokenChanged, signOut } from "firebase/auth";
+import { onIdTokenChanged, sendEmailVerification, signOut } from "firebase/auth";
 import type { User } from "firebase/auth";
 import { doc, onSnapshot } from "firebase/firestore";
 import { auth, authReady, db } from "@/lib/firebase";
@@ -10,6 +10,9 @@ interface AuthContextType {
   currentUser: Member | null; authUser: User | null;
   isAuthenticated: boolean; isAdmin: boolean; isLoading: boolean;
   profileMissing: boolean; error: string | null;
+  emailVerified: boolean;
+  sendVerificationEmail: () => Promise<void>;
+  refreshEmailVerification: () => Promise<boolean>;
   login: (input: LoginInput) => Promise<{ success: boolean; member?: Member; status?: ApprovalStatus; message?: string }>;
   register: (input: RegistrationInput) => Promise<{ success: boolean; member?: Member; error?: string }>;
   logout: () => Promise<void>;
@@ -22,6 +25,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authUser, setAuthUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [profileMissing, setProfileMissing] = useState(false);
+  const [emailVerified, setEmailVerified] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const operation = useRef(false);
   useEffect(() => {
@@ -32,7 +36,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!alive) return;
       unsubscribeAuth = onIdTokenChanged(auth, user => {
         unsubscribeProfile();
-        setAuthUser(user); setCurrentUser(null); setProfileMissing(false); setError(null);
+        setAuthUser(user); setEmailVerified(user?.emailVerified ?? false); setCurrentUser(null); setProfileMissing(false); setError(null);
         if (!user) { setIsLoading(false); return; }
         if (!operation.current) setIsLoading(true);
         unsubscribeProfile = onSnapshot(doc(db, "users", user.uid), snapshot => {
@@ -74,8 +78,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try { await signOut(auth); setCurrentUser(null); setProfileMissing(false); setError(null); }
     catch (cause) { setError(portalError(cause)); }
   };
+  const sendVerificationEmail = async () => {
+    const user = auth.currentUser;
+    if (!user) throw new Error("Sign in to the account before requesting email verification.");
+    await sendEmailVerification(user);
+  };
+  const refreshEmailVerification = async () => {
+    const user = auth.currentUser;
+    if (!user) throw new Error("Sign in to the account before checking email verification.");
+    await user.reload();
+    const verified = auth.currentUser?.emailVerified ?? false;
+    setEmailVerified(verified);
+    return verified;
+  };
   const isAuthenticated = !!authUser && currentUser?.approvalStatus === "approved" && !error;
   const isAdmin = isAuthenticated && (currentUser?.role === "Chairperson" || currentUser?.role === "Mentor");
-  return <AuthContext.Provider value={{ currentUser, authUser, isAuthenticated, isAdmin, isLoading, profileMissing, error, login, register, logout, pendingRegisteredUser: currentUser?.approvalStatus === "pending" ? currentUser : null, rejectedUser: currentUser?.approvalStatus === "rejected" ? currentUser : null, clearPendingState: logout }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ currentUser, authUser, isAuthenticated, isAdmin, isLoading, profileMissing, error, emailVerified, sendVerificationEmail, refreshEmailVerification, login, register, logout, pendingRegisteredUser: currentUser?.approvalStatus === "pending" ? currentUser : null, rejectedUser: currentUser?.approvalStatus === "rejected" ? currentUser : null, clearPendingState: logout }}>{children}</AuthContext.Provider>;
 }
 export function useAuth() { const context = useContext(AuthContext); if (!context) throw new Error("useAuth must be used within an AuthProvider"); return context; }

@@ -24,8 +24,8 @@ export const auth = getAuth(firebaseApp);
 // Explicit development setting; Firebase errors never switch to emulator or demo data.
 if (useEmulators) {
   if (location.hostname !== "localhost" && location.hostname !== "127.0.0.1") throw new Error("Firebase emulators may only be used on localhost.");
-  connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
-  connectFirestoreEmulator(db, "127.0.0.1", 8081);
+  connectAuthEmulator(auth, `http://127.0.0.1:${import.meta.env.VITE_FIREBASE_AUTH_EMULATOR_PORT || "9099"}`, { disableWarnings: true });
+  connectFirestoreEmulator(db, "127.0.0.1", Number(import.meta.env.VITE_FIRESTORE_EMULATOR_PORT || "8081"));
 }
 export const authReady = setPersistence(auth, browserLocalPersistence);
 for (const key of ["actcet_members_v2", "actcet_events_v2", "actcet_attendance_v2", "actcet_session_v2"]) {

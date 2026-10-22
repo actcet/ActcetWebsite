@@ -20,20 +20,20 @@ export default function MembersPortalPage() {
       // so short year values do not accidentally match unrelated text
       const isSpecificYearQuery = q === "se" || q === "te" || q === "be";
       if (isSpecificYearQuery) {
-        return member.year.toLowerCase() === q;
+        return (member.year || "").toLowerCase() === q;
       }
 
       // 2. Name match (case-insensitive substring)
       if (member.name.toLowerCase().includes(q)) return true;
 
       // 3. Branch match (exact or substring, e.g. "aiml", "cse", "cse(iot)")
-      if (member.branch.toLowerCase().includes(q)) return true;
+      if ((member.branch || "").toLowerCase().includes(q)) return true;
 
       // 4. Year substring match (if query is longer/part of class)
-      if (member.year.toLowerCase().includes(q)) return true;
+      if ((member.year || "").toLowerCase().includes(q)) return true;
 
       // 5. Combined Class format e.g. "SE-CSE(IoT)-A"
-      const classPattern = `${member.year}-${member.branch}-${member.division}`.toLowerCase();
+      const classPattern = `${member.year || ""}-${member.branch || ""}-${member.division || ""}`.toLowerCase();
       if (classPattern.includes(q)) return true;
 
       // 6. Role match
@@ -264,7 +264,7 @@ export default function MembersPortalPage() {
                               {/* Year-Branch-Division (e.g. SE-CSE(IoT)-A) */}
                               <td className="py-4 px-4">
                                 <span className="inline-block px-2.5 py-1 rounded-lg bg-white/[0.06] border border-white/10 font-mono text-xs text-ink-soft">
-                                  {member.year}-{member.branch}-{member.division}
+                                  {member.year || "—"}-{member.branch || "—"}-{member.division || "—"}
                                 </span>
                               </td>
 

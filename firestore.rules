@@ -22,14 +22,19 @@ service cloud.firestore {
     function session(value) { return value is string && value.matches('^[0-9]{4}-[0-9]{2}$'); }
     function validUser(d) {
       return d.keys().hasAll(['name', 'email', 'branch', 'division', 'year', 'academicYear', 'requestedRole', 'role', 'approvalStatus', 'createdAt', 'approvedAt', 'approvedBy']) &&
-        d.keys().hasOnly(['name', 'email', 'branch', 'division', 'year', 'academicYear', 'requestedRole', 'role', 'approvalStatus', 'createdAt', 'approvedAt', 'approvedBy', 'rejectionReason']) &&
+        d.keys().hasOnly(['name', 'email', 'accountType', 'branch', 'division', 'year', 'academicYear', 'requestedRole', 'role', 'approvalStatus', 'createdAt', 'approvedAt', 'approvedBy', 'rejectionReason']) &&
+        (!('accountType' in d) || d.accountType in ['member', 'club_admin']) &&
         text(d.name, 120) && text(d.email, 254) && d.email.matches('^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$') &&
-        d.branch in ['Comp', 'AIML', 'AIDS', 'IOT', 'Mech', 'ECS', 'Civil', 'CSE(CS)', 'CSE(IoT)', 'EXTC', 'IT'] &&
-        d.division in ['A', 'B', 'C', 'D'] && d.year in ['SE', 'TE', 'BE'] && session(d.academicYear) &&
         roleValid(d.requestedRole) && roleValid(d.role) && d.approvalStatus in ['pending', 'approved', 'rejected'] &&
         d.createdAt is timestamp && (d.approvedAt == null || d.approvedAt is timestamp) &&
         (d.approvedBy == null || text(d.approvedBy, 128)) &&
-        (!('rejectionReason' in d) || (d.rejectionReason is string && d.rejectionReason.size() <= 1000));
+        (!('rejectionReason' in d) || (d.rejectionReason is string && d.rejectionReason.size() <= 1000)) &&
+        (((!('accountType' in d) || d.accountType == 'member') &&
+          d.branch in ['Comp', 'AIML', 'AIDS', 'IOT', 'Mech', 'ECS', 'Civil', 'CSE(CS)', 'CSE(IoT)', 'EXTC', 'IT'] &&
+          d.division in ['A', 'B', 'C', 'D'] && d.year in ['SE', 'TE', 'BE'] && session(d.academicYear)) ||
+         (d.accountType == 'club_admin' && d.branch == null && d.division == null && d.year == null && d.academicYear == null &&
+          d.requestedRole in ['Chairperson', 'Mentor'] && d.role in ['Chairperson', 'Mentor'] && d.approvalStatus == 'approved' &&
+          d.approvedAt is timestamp && text(d.approvedBy, 128)));
     }
     function validEvent(d) {
       return d.keys().hasAll(['name', 'academicYear', 'date', 'aicteHours', 'description', 'createdAt', 'createdBy']) &&
@@ -45,10 +50,12 @@ service cloud.firestore {
       allow list: if admin() || (approved() && resource.data.approvalStatus == 'approved');
       allow create: if isOwner(uid) && validUser(request.resource.data) &&
         request.resource.data.email == request.auth.token.email &&
+        (!('accountType' in request.resource.data) || request.resource.data.accountType == 'member') &&
         request.resource.data.approvalStatus == 'pending' && request.resource.data.role == 'Member' &&
         request.resource.data.approvedAt == null && request.resource.data.approvedBy == null &&
         !('rejectionReason' in request.resource.data) && request.resource.data.createdAt == request.time;
       allow update: if admin() && !isOwner(uid) && validUser(request.resource.data) &&
+        (!('accountType' in resource.data) || resource.data.accountType != 'club_admin') &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role', 'approvalStatus', 'approvedAt', 'approvedBy', 'rejectionReason']) &&
         request.resource.data.approvedBy == request.auth.uid &&
         ((request.resource.data.approvalStatus == 'approved' && request.resource.data.approvedAt == request.time) ||
@@ -76,6 +83,8 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/users/$(request.resource.data.memberId)) &&
         exists(/databases/$(database)/documents/events/$(request.resource.data.eventId)) &&
         get(/databases/$(database)/documents/users/$(request.resource.data.memberId)).data.approvalStatus == 'approved' &&
+        (!('accountType' in get(/databases/$(database)/documents/users/$(request.resource.data.memberId)).data) ||
+          get(/databases/$(database)/documents/users/$(request.resource.data.memberId)).data.accountType != 'club_admin') &&
         get(/databases/$(database)/documents/users/$(request.resource.data.memberId)).data.academicYear ==
           get(/databases/$(database)/documents/events/$(request.resource.data.eventId)).data.academicYear;
       allow delete: if false;

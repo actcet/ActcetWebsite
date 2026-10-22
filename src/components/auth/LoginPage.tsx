@@ -60,7 +60,7 @@ export default function LoginPage({
   onNavigateRejected,
   initialMode = "login",
 }: LoginPageProps) {
-  const { login, register, authUser, profileMissing } = useAuth();
+  const { login, register, authUser, profileMissing, emailVerified, sendVerificationEmail, refreshEmailVerification } = useAuth();
   const { settings, error: settingsError } = useClubData();
   const [activeTab, setActiveTab] = useState<"login" | "register">(initialMode);
 
@@ -79,13 +79,44 @@ export default function LoginPage({
   const [regYear, setRegYear] = useState<StudyYear>("SE");
   const [regEmail, setRegEmail] = useState(authUser?.email || "");
   const [regAcademicYear, setRegAcademicYear] = useState("");
-  useEffect(() => { if (settings) setRegAcademicYear(previous => previous || settings.currentAcademicYear); }, [settings]);
+  useEffect(() => { if (settings) setRegAcademicYear(settings.currentAcademicYear); }, [settings]);
   useEffect(() => { if (profileMissing) { setActiveTab("register"); setRegEmail(authUser?.email || ""); } }, [profileMissing, authUser?.email]);
   const [regRole, setRegRole] = useState<UserRole>("Member");
   const [regPassword, setRegPassword] = useState("");
   const [showRegPassword, setShowRegPassword] = useState(false);
   const [regError, setRegError] = useState<string | null>(null);
   const [isSubmittingReg, setIsSubmittingReg] = useState(false);
+  const [verificationBusy, setVerificationBusy] = useState(false);
+  const [verificationMessage, setVerificationMessage] = useState<string | null>(null);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
+
+  const handleSendVerification = async () => {
+    setVerificationBusy(true);
+    setVerificationError(null);
+    setVerificationMessage(null);
+    try {
+      await sendVerificationEmail();
+      setVerificationMessage(`A verification link was sent to ${authUser?.email}. Open it, then return here and check verification status.`);
+    } catch (cause) {
+      setVerificationError(cause instanceof Error ? cause.message : "Could not send a verification link. Please retry.");
+    } finally {
+      setVerificationBusy(false);
+    }
+  };
+
+  const handleRefreshVerification = async () => {
+    setVerificationBusy(true);
+    setVerificationError(null);
+    setVerificationMessage(null);
+    try {
+      const verified = await refreshEmailVerification();
+      setVerificationMessage(verified ? "Email verification is complete. You can sign out; profile provisioning remains a separate owner step." : "Firebase still reports this email as unverified. Open the latest verification link, then check again.");
+    } catch (cause) {
+      setVerificationError(cause instanceof Error ? cause.message : "Could not refresh verification status. Please retry.");
+    } finally {
+      setVerificationBusy(false);
+    }
+  };
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -182,6 +213,17 @@ export default function LoginPage({
 
       {/* AUTH CARD */}
       <div className="w-full max-w-xl rounded-[28px] border border-white/20 bg-[#0b1530]/90 backdrop-blur-2xl shadow-[0_25px_80px_rgba(0,0,0,0.7)] p-6 sm:p-8 relative">
+        {profileMissing && authUser && (
+          <section className="mb-6 rounded-2xl border border-amber-300/25 bg-amber-400/[0.07] p-4" aria-label="Email verification">
+            <h2 className="font-display font-bold text-white">Verify the account email</h2>
+            <p className="mt-1 text-xs text-ink-soft">Signed in as {authUser.email}. Email verification does not create a member profile or grant website access.</p>
+            <p className="mt-1 text-xs text-ink-soft">Firebase status: <span className={emailVerified ? "text-emerald-300" : "text-amber-200"}>{emailVerified ? "Verified" : "Not verified"}</span></p>
+            {!emailVerified && <button type="button" disabled={verificationBusy} onClick={() => void handleSendVerification()} className="mt-3 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white disabled:opacity-60">{verificationBusy ? "Sending…" : "Send verification email"}</button>}
+            <button type="button" disabled={verificationBusy} onClick={() => void handleRefreshVerification()} className="mt-3 ml-2 rounded-lg border border-white/20 px-3 py-2 text-xs font-semibold text-white disabled:opacity-60">{emailVerified ? "Refresh status" : "I verified my email"}</button>
+            {verificationMessage && <p className="mt-3 text-xs text-emerald-200" role="status">{verificationMessage}</p>}
+            {verificationError && <p className="mt-3 text-xs text-rose-200" role="alert">{verificationError}</p>}
+          </section>
+        )}
         {/* TAB SELECTOR */}
         <div className="grid grid-cols-2 p-1.5 bg-white/[0.05] rounded-2xl border border-white/10 mb-6">
           <button
@@ -450,7 +492,7 @@ export default function LoginPage({
 
               <div>
                 <label className="block text-xs font-label uppercase tracking-wider text-white/80 mb-1.5" htmlFor="academic-session">Academic Session</label>
-                <input id="academic-session" value={regAcademicYear} onChange={e => setRegAcademicYear(e.target.value)} required pattern="[0-9]{4}-[0-9]{2}" placeholder="2026-27" className="w-full px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/15 text-white text-sm" />
+                <input id="academic-session" value={regAcademicYear} readOnly required pattern="[0-9]{4}-[0-9]{2}" placeholder="2026-27" className="w-full px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/15 text-white text-sm" />
                 {settingsError && <p role="alert" className="text-rose-300 text-xs mt-1">{settingsError}</p>}
               </div>
               {/* Password */}

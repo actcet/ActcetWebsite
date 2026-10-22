@@ -1,18 +1,24 @@
 {
   "score": 4,
-  "summary": "Prototype rules passed 22 emulator groups and live unauthorized-request checks. Live profiles are the authority; requested roles never grant privileges. Remaining operational requirements are documented.",
+  "summary": "Reviewed rules deployed after 27 security tests and browser integration checks; live denied requests verified. The existing official administrator document was preserved.",
   "findings": [
     {
-      "check": "Auth identity lifecycle",
+      "check": "Auth lifecycle",
       "severity": "minor",
-      "issue": "Disabling or deleting Firebase Auth alone does not immediately invalidate an already-issued token. Rules cannot query the Auth directory.",
-      "recommendation": "Revoke or delete the users profile before disabling/deleting Auth so current Firestore authorization is removed immediately. Follow the owner procedure."
+      "issue": "Firestore rules consult live profile authority but cannot immediately invalidate an already issued Auth token solely because Auth is disabled or deleted.",
+      "recommendation": "Use trusted owner procedures to revoke profile access before disabling or deleting an identity."
     },
     {
-      "check": "Read scope and scale",
+      "check": "Bootstrap authority",
       "severity": "minor",
-      "issue": "Approved members can read all approved profiles/emails and portal attendance, as requested; collection listeners are unpaginated for the club-sized dataset.",
-      "recommendation": "Keep approvals intentional. Reassess field visibility, session query limits and pagination if the club or privacy requirements grow."
+      "issue": "Owner authorization and mailbox verification are external procedures; the existing approved Chairperson profile currently grants authority without an email_verified gate.",
+      "recommendation": "Keep club administrator provisioning and maintenance restricted to trusted IAM owners. Do not infer owner approval from a display-name field."
+    },
+    {
+      "check": "Portal privacy and scale",
+      "severity": "minor",
+      "issue": "Approved members intentionally read other approved profiles and relevant attendance. Profile streams remain unpaginated for the club-sized roster.",
+      "recommendation": "Revisit privacy and pagination as the roster grows; retain session-scoped event and event-scoped attendance queries."
     }
   ]
 }

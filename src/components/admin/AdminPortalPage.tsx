@@ -43,6 +43,7 @@ export default function AdminPortalPage() {
 
   // Active admin section tab: "approvals" | "member-update"
   const [activeTab, setActiveTab] = useState<"approvals" | "member-update">("approvals");
+  const clubAdminAccounts = members.filter(member => member.accountType === "club_admin");
 
   const [verifiedRoles, setVerifiedRoles] = useState<Record<string, UserRole>>({});
   const [busy, setBusy] = useState<Record<string, boolean>>({});
@@ -72,7 +73,7 @@ export default function AdminPortalPage() {
       (m) =>
         m.name.toLowerCase().includes(q) ||
         m.email.toLowerCase().includes(q) ||
-        m.branch.toLowerCase().includes(q) ||
+        (m.branch || "").toLowerCase().includes(q) ||
         m.requestedRole.toLowerCase().includes(q)
     );
   }, [pendingMembers, approvalSearchQuery]);
@@ -85,14 +86,14 @@ export default function AdminPortalPage() {
     return approvedMembers.filter((m) => {
       const isSpecificYearQuery = q === "se" || q === "te" || q === "be";
       if (isSpecificYearQuery) {
-        return m.year.toLowerCase() === q;
+        return (m.year || "").toLowerCase() === q;
       }
 
       if (m.name.toLowerCase().includes(q)) return true;
-      if (m.branch.toLowerCase().includes(q)) return true;
-      if (m.year.toLowerCase().includes(q)) return true;
+      if ((m.branch || "").toLowerCase().includes(q)) return true;
+      if ((m.year || "").toLowerCase().includes(q)) return true;
 
-      const classPattern = `${m.year}-${m.branch}-${m.division}`.toLowerCase();
+      const classPattern = `${m.year || ""}-${m.branch || ""}-${m.division || ""}`.toLowerCase();
       if (classPattern.includes(q)) return true;
 
       if (m.role.toLowerCase().includes(q)) return true;
@@ -165,6 +166,14 @@ export default function AdminPortalPage() {
 
           </div>
         </div>
+
+        <section className="mt-6 rounded-2xl border border-white/10 bg-[#0b1530]/70 p-5" aria-label="Administrative accounts">
+          <h2 className="font-display text-lg font-bold text-white">Administrative Accounts</h2>
+          <p className="mt-1 text-xs text-ink-soft">Club administrator identities are kept separate from student attendance and AICTE tables.</p>
+          {clubAdminAccounts.length === 0 ? <p className="mt-4 text-sm text-ink-soft">No club administrator profiles are provisioned.</p> : (
+            <div className="mt-4 overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="border-b border-white/10 text-xs uppercase text-ink-soft"><th className="py-2 pr-4">Name</th><th className="py-2 pr-4">Email</th><th className="py-2 pr-4">Role</th><th className="py-2">Status</th></tr></thead><tbody>{clubAdminAccounts.map(account => <tr key={account.id} className="border-b border-white/5"><td className="py-3 pr-4 text-white">{account.name}</td><td className="py-3 pr-4 font-mono text-xs text-ink-soft">{account.email}</td><td className="py-3 pr-4 text-white">{account.role}</td><td className="py-3 text-emerald-300">{account.approvalStatus}</td></tr>)}</tbody></table></div>
+          )}
+        </section>
 
         {/* ======================================================== */}
         {/* OVERVIEW STATS CARDS */}
@@ -339,7 +348,7 @@ export default function AdminPortalPage() {
                         {/* Year-Branch-Division */}
                         <td className="py-4 px-4">
                           <span className="px-2.5 py-1 rounded-lg bg-white/[0.06] border border-white/10 font-mono text-xs text-ink-soft">
-                            {member.year}-{member.branch}-{member.division}
+                            {member.year || "—"}-{member.branch || "—"}-{member.division || "—"}
                           </span>
                         </td>
 
@@ -524,7 +533,7 @@ export default function AdminPortalPage() {
 
                               {/* Class */}
                               <td className="py-3.5 px-4 font-mono text-xs text-ink-soft">
-                                {member.year}-{member.branch}-{member.division}
+                                {member.year || "—"}-{member.branch || "—"}-{member.division || "—"}
                               </td>
 
                               {/* Email */}
