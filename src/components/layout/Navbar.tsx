@@ -155,9 +155,9 @@ export default function Navbar({ currentRoute = "home", onNavigate }: NavbarProp
     // On home view, let standard anchor scroll take effect
   };
 
-  const handleLogoutClick = () => {
+  const handleLogoutClick = async () => {
     setProfileDropdownOpen(false);
-    logout();
+    await logout();
     onNavigate?.("login");
   };
 

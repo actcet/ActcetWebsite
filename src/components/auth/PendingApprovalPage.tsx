@@ -11,8 +11,8 @@ export default function PendingApprovalPage({ onBackToLogin }: PendingApprovalPa
   const { pendingRegisteredUser, clearPendingState } = useAuth();
   const { showToast } = useToast();
 
-  const handleBackToLogin = () => {
-    clearPendingState();
+  const handleBackToLogin = async () => {
+    await clearPendingState();
     onBackToLogin();
   };
 
@@ -73,7 +73,7 @@ export default function PendingApprovalPage({ onBackToLogin }: PendingApprovalPa
             </p>
             <p><span className="text-white/50">Name:</span> <strong className="text-white">{pendingRegisteredUser.name}</strong></p>
             <p><span className="text-white/50">Class:</span> {pendingRegisteredUser.year}-{pendingRegisteredUser.branch}-{pendingRegisteredUser.division}</p>
-            <p><span className="text-white/50">Applied Role:</span> {pendingRegisteredUser.role}</p>
+            <p><span className="text-white/50">Applied Role:</span> {pendingRegisteredUser.requestedRole}</p>
             <p><span className="text-white/50">Email:</span> {pendingRegisteredUser.email}</p>
             <p><span className="text-white/50">Status:</span> <span className="text-amber-300 font-bold uppercase tracking-wider">Awaiting Approval</span></p>
           </div>

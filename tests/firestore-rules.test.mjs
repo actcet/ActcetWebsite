@@ -1,439 +1,105 @@
-import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { after, before, beforeEach, test } from "node:test";
-import {
-  assertFails,
-  assertSucceeds,
-  initializeTestEnvironment,
-} from "@firebase/rules-unit-testing";
-import {
-  Timestamp,
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  serverTimestamp,
-  setDoc,
-  updateDoc,
-  query,
-  where,
-} from "firebase/firestore";
-
+import { assertFails, assertSucceeds, initializeTestEnvironment } from "@firebase/rules-unit-testing";
+import { collection, doc, getDoc, getDocs, query, where, serverTimestamp, setDoc, updateDoc, deleteDoc, Timestamp } from "firebase/firestore";
 const projectId = "demo-actcet-members";
-const ownerEmail = "actcet@tcetmumbai.in";
-let testEnv;
-
-const memberProfile = (
-  uid,
-  role = "member",
-  membershipStatus = "active",
-) => ({
-  fullName: `Member ${uid}`,
-  collegeEmail: `${uid}@tcetmumbai.in`,
-  rollNumber: "123456",
-  className: "EXTC",
-  division: "A",
-  academicYear: "2026-27",
-  phoneNumber: "",
-  profilePhotoUrl: "",
-  membershipStatus,
-  role,
-  aicteHours: 0,
-  createdAt: Timestamp.fromDate(new Date("2026-01-01T00:00:00Z")),
-  updatedAt: Timestamp.fromDate(new Date("2026-01-01T00:00:00Z")),
-});
-
-const verifiedContext = (uid, email = `${uid}@tcetmumbai.in`) =>
-  testEnv.authenticatedContext(uid, {
-    email,
-    email_verified: true,
-  });
-
-const submitRegistration = (db, uid, overrides = {}) =>
-  setDoc(doc(db, `members/${uid}`), {
-    ...memberProfile(uid, "member", "pending"),
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-    ...overrides,
-  });
-
-before(async () => {
-  const rules = await readFile(
-    new URL("../firestore.rules", import.meta.url),
-    "utf8",
-  );
-  testEnv = await initializeTestEnvironment({
-    projectId,
-    firestore: { rules },
-  });
-});
-
+const eventId = "abcdefghijklmnopqrst";
+let env;
+const profile = (id, role = "Member", approvalStatus = "approved") => ({ name: `Test ${id}`, email: `${id}@example.test`, branch: "Comp", division: "A", year: "TE", academicYear: "2026-27", requestedRole: role, role, approvalStatus, createdAt: Timestamp.fromMillis(1), approvedAt: approvalStatus === "approved" ? Timestamp.fromMillis(1) : null, approvedBy: approvalStatus === "approved" ? "owner" : null });
+const dbFor = id => env.authenticatedContext(id, { email: `${id}@example.test` }).firestore();
+const event = () => ({ name: "Controlled Test Event", academicYear: "2026-27", date: Timestamp.fromMillis(1), aicteHours: 4, description: "Emulator only", createdAt: serverTimestamp(), createdBy: "chair" });
+const attendance = () => ({ memberId: "member", eventId, attended: true, updatedAt: serverTimestamp(), updatedBy: "chair" });
+before(async () => { env = await initializeTestEnvironment({ projectId, firestore: { host: "127.0.0.1", port: 8081, rules: await readFile(new URL("../firestore.rules", import.meta.url), "utf8") } }); });
 beforeEach(async () => {
-  await testEnv.clearFirestore();
-  await testEnv.withSecurityRulesDisabled(async (context) => {
+  await env.clearFirestore();
+  await env.withSecurityRulesDisabled(async context => {
     const db = context.firestore();
-    await setDoc(doc(db, "accessControl/core-uid"), { role: "coreTeam" });
-    await setDoc(doc(db, "accessControl/owner-uid"), { role: "admin" });
-    await setDoc(doc(db, "accessControl/event-manager"), {
-      role: "eventManager",
-    });
-    await setDoc(
-      doc(db, "members/core-uid"),
-      memberProfile("core-uid", "core_team"),
-    );
-    await setDoc(
-      doc(db, "members/member-a"),
-      memberProfile("member-a"),
-    );
-    await setDoc(
-      doc(db, "members/member-b"),
-      memberProfile("member-b"),
-    );
-    await setDoc(
-      doc(db, "members/member-candidate"),
-      memberProfile("member-candidate", "core_team"),
-    );
-    await setDoc(
-      doc(db, "members/pending-user"),
-      memberProfile("pending-user", "member", "pending"),
-    );
-    await setDoc(
-      doc(db, "members/rejected-user"),
-      memberProfile("rejected-user", "member", "rejected"),
-    );
-    await setDoc(doc(db, "members/member-a/registrations/reg-1"), {
-      eventId: "event-1",
-      eventName: "Stargazing",
-      registrationDate: "2026-08-01",
-      registrationDetails: "Two participants",
-      attended: true,
-      updatedAt: Timestamp.fromDate(new Date("2026-08-01T00:00:00Z")),
-    });
-    await setDoc(doc(db, "members/member-b/registrations/reg-1"), {
-      eventId: "event-1",
-      eventName: "Stargazing",
-      registrationDate: "2026-08-01",
-      registrationDetails: "Two participants",
-      attended: true,
-      updatedAt: Timestamp.fromDate(new Date("2026-08-01T00:00:00Z")),
-    });
-    await setDoc(doc(db, "events/published"), {
-      id: "published",
-      status: "published",
-    });
-    await setDoc(doc(db, "events/draft"), { id: "draft", status: "draft" });
+    for (const [id, role, status] of [["chair", "Chairperson", "approved"], ["mentor", "Mentor", "approved"], ["member", "Member", "approved"], ["pending", "Member", "pending"], ["rejected", "Member", "rejected"]]) await setDoc(doc(db, "users", id), profile(id, role, status));
+    await setDoc(doc(db, "settings/club"), { currentAcademicYear: "2026-27", hoursPerAICTEPoint: 4 });
+    await setDoc(doc(db, "events", eventId), { ...event(), createdAt: Timestamp.fromMillis(1) });
   });
 });
-
-after(async () => {
-  await testEnv?.cleanup();
+after(async () => { await env?.cleanup(); });
+test("Public can read only non-sensitive club settings", async () => {
+  const db = env.unauthenticatedContext().firestore();
+  await assertSucceeds(getDoc(doc(db, "settings/club")));
+  for (const path of ["users/member", `events/${eventId}`, `attendance/member__${eventId}`]) await assertFails(getDoc(doc(db, path)));
+  for (const name of ["users", "events", "attendance", "settings"]) await assertFails(getDocs(collection(db, name)));
 });
-
-test("verified members can submit only their own pending registration", async () => {
-  const db = verifiedContext("applicant").firestore();
-
-  await assertSucceeds(submitRegistration(db, "applicant"));
-  await assertSucceeds(getDoc(doc(db, "members/applicant")));
-  await assertFails(getDocs(collection(db, "members")));
-
-  await assertFails(
-    submitRegistration(db, "applicant", { membershipStatus: "active" }),
-  );
-  await assertFails(
-    submitRegistration(db, "another-uid"),
-  );
-  await assertFails(
-    submitRegistration(db, "applicant", { role: "core_team" }),
-  );
+test("Self registration creates only pending Member with separate requested role", async () => {
+  const db = dbFor("new");
+  await assertSucceeds(setDoc(doc(db, "users/new"), { ...profile("new", "Member", "pending"), requestedRole: "Chairperson", createdAt: serverTimestamp() }));
+  await assertSucceeds(getDoc(doc(db, "users/new")));
+  await assertFails(updateDoc(doc(db, "users/new"), { approvalStatus: "approved", role: "Chairperson" }));
 });
-
-test("only verified @tcetmumbai.in accounts can submit registrations", async () => {
-  const unverifiedDb = testEnv
-    .authenticatedContext("unverified", {
-      email: "unverified@tcetmumbai.in",
-      email_verified: false,
-    })
-    .firestore();
-  const externalDb = testEnv
-    .authenticatedContext("external", {
-      email: "external@example.com",
-      email_verified: true,
-    })
-    .firestore();
-
-  await assertFails(submitRegistration(unverifiedDb, "unverified"));
-  await assertFails(submitRegistration(externalDb, "external"));
-  await assertFails(
-    submitRegistration(
-      verifiedContext("mismatch").firestore(),
-      "mismatch",
-      { collegeEmail: "other@tcetmumbai.in" },
-    ),
-  );
+for (const [label, overrides] of [["approved", { approvalStatus: "approved" }], ["admin role", { role: "Chairperson" }], ["forged email", { email: "other@example.test" }], ["backdated", { createdAt: Timestamp.fromMillis(1) }], ["extra field", { isAdmin: true }], ["invalid role", { requestedRole: "root" }], ["oversized name", { name: "x".repeat(121) }], ["invalid branch", { branch: "Fake" }], ["wrong type", { year: 3 }], ["privileged approval", { approvedBy: "new" }]]) {
+  test(`Registration rejects ${label}`, async () => { await assertFails(setDoc(doc(dbFor("new"), "users/new"), { ...profile("new", "Member", "pending"), createdAt: serverTimestamp(), ...overrides })); });
+}
+test("Registration cannot create another UID's profile", async () => { await assertFails(setDoc(doc(dbFor("attacker"), "users/new"), { ...profile("attacker", "Member", "pending"), createdAt: serverTimestamp() })); });
+test("Pending and rejected users cannot read portal data or approve", async () => {
+  for (const id of ["pending", "rejected"]) {
+    const db = dbFor(id);
+    await assertSucceeds(getDoc(doc(db, "users", id)));
+    await assertFails(getDocs(collection(db, "events")));
+    await assertFails(getDoc(doc(db, "users/member")));
+    await assertFails(updateDoc(doc(db, "users/member"), { role: "Mentor", approvalStatus: "approved", approvedAt: serverTimestamp(), approvedBy: id }));
+  }
 });
-
-test("pending and rejected applicants can view only their own status", async () => {
-  const pendingDb = verifiedContext("pending-user").firestore();
-  const rejectedDb = verifiedContext("rejected-user").firestore();
-
-  await assertSucceeds(getDoc(doc(pendingDb, "members/pending-user")));
-  await assertSucceeds(getDoc(doc(rejectedDb, "members/rejected-user")));
-  await assertFails(
-    getDoc(doc(pendingDb, "members/pending-user/registrations/reg-1")),
-  );
-  await assertFails(getDoc(doc(pendingDb, "members/member-a")));
+test("Approved member query is constrained to approved profiles", async () => {
+  const db = dbFor("member");
+  await assertSucceeds(getDocs(query(collection(db, "users"), where("approvalStatus", "==", "approved"))));
+  await assertFails(getDocs(collection(db, "users")));
+  await assertFails(getDoc(doc(db, "users/pending")));
+  await assertSucceeds(getDocs(collection(db, "events")));
+  await assertSucceeds(getDocs(collection(db, "attendance")));
 });
-
-test("members cannot read or modify another member profile or registration", async () => {
-  const db = verifiedContext("member-a").firestore();
-
-  await assertSucceeds(getDoc(doc(db, "members/member-a")));
-  await assertSucceeds(
-    getDoc(doc(db, "members/member-a/registrations/reg-1")),
-  );
-  await assertFails(getDoc(doc(db, "members/member-b")));
-  await assertFails(
-    getDoc(doc(db, "members/member-b/registrations/reg-1")),
-  );
-  await assertFails(getDocs(collection(db, "members")));
-  await assertFails(
-    updateDoc(doc(db, "members/member-b"), {
-      phoneNumber: "+91 98765 43210",
-      updatedAt: serverTimestamp(),
-    }),
-  );
-  await assertFails(deleteDoc(doc(db, "members/member-b")));
+test("Ordinary member cannot self elevate, create event or edit attendance", async () => {
+  const db = dbFor("member");
+  await assertFails(updateDoc(doc(db, "users/member"), { role: "Chairperson" }));
+  await assertFails(updateDoc(doc(db, "users/pending"), { role: "Mentor", approvalStatus: "approved", approvedAt: serverTimestamp(), approvedBy: "member" }));
+  await assertFails(setDoc(doc(db, "events", "zyxwvutsrqponmlkjihg"), { ...event(), createdBy: "member" }));
+  await assertFails(setDoc(doc(db, "attendance", `member__${eventId}`), { ...attendance(), updatedBy: "member" }));
 });
-
-test("members can update only their own phone and profile photo", async () => {
-  const db = verifiedContext("member-a").firestore();
-  const ownProfile = doc(db, "members/member-a");
-
-  await assertSucceeds(
-    updateDoc(ownProfile, {
-      phoneNumber: "+91 98765 43210",
-      profilePhotoUrl: "https://example.com/member-a.png",
-      updatedAt: serverTimestamp(),
-    }),
-  );
-  await assertFails(updateDoc(ownProfile, { role: "wc" }));
-  await assertFails(updateDoc(ownProfile, { aicteHours: 100 }));
-  await assertFails(updateDoc(ownProfile, { membershipStatus: "active" }));
-  await assertFails(updateDoc(ownProfile, { rollNumber: "654321" }));
-  await assertFails(
-    updateDoc(ownProfile, { collegeEmail: "other@example.com" }),
-  );
-  await assertFails(updateDoc(ownProfile, { updatedAt: Timestamp.now() }));
+test("Chairperson and Mentor can approve and reject through verified role update", async () => {
+  for (const id of ["chair", "mentor"]) {
+    const db = dbFor(id);
+    await assertSucceeds(getDocs(collection(db, "users")));
+    await assertSucceeds(updateDoc(doc(db, "users/pending"), { role: "Technical Head", approvalStatus: "approved", approvedAt: serverTimestamp(), approvedBy: id }));
+    await assertSucceeds(updateDoc(doc(db, "users/pending"), { role: "Member", approvalStatus: "rejected", approvedAt: null, approvedBy: id, rejectionReason: "Controlled rejection" }));
+  }
 });
-
-test("only the Admin can approve or reject a registration", async () => {
-  const applicantDb = verifiedContext("pending-user").firestore();
-  const coreDb = verifiedContext("core-uid").firestore();
-  const adminDb = verifiedContext("owner-uid", ownerEmail).firestore();
-  const applicant = doc(applicantDb, "members/pending-user");
-
-  await assertFails(
-    updateDoc(applicant, {
-      membershipStatus: "active",
-      updatedAt: serverTimestamp(),
-    }),
-  );
-  await assertFails(
-    updateDoc(doc(coreDb, "members/pending-user"), {
-      membershipStatus: "active",
-      updatedAt: serverTimestamp(),
-    }),
-  );
-  await assertSucceeds(
-    updateDoc(doc(adminDb, "members/pending-user"), {
-      membershipStatus: "active",
-      updatedAt: serverTimestamp(),
-    }),
-  );
-  await assertSucceeds(
-    updateDoc(doc(adminDb, "members/rejected-user"), {
-      membershipStatus: "rejected",
-      updatedAt: serverTimestamp(),
-    }),
-  );
-  await assertFails(
-    updateDoc(doc(coreDb, "members/core-uid"), {
-      membershipStatus: "inactive",
-      updatedAt: serverTimestamp(),
-    }),
-  );
+test("Admin cannot change own authority, forge approver, rewrite identity, or delete profiles", async () => {
+  const db = dbFor("chair");
+  await assertFails(updateDoc(doc(db, "users/chair"), { approvalStatus: "approved", approvedAt: serverTimestamp(), approvedBy: "chair" }));
+  await assertFails(updateDoc(doc(db, "users/pending"), { role: "Member", approvalStatus: "approved", approvedAt: serverTimestamp(), approvedBy: "mentor" }));
+  await assertFails(updateDoc(doc(db, "users/pending"), { name: "Hijacked", role: "Member", approvalStatus: "approved", approvedAt: serverTimestamp(), approvedBy: "chair" }));
+  await assertFails(deleteDoc(doc(db, "users/member")));
 });
-
-test("Core Team can manage active records and registrations, not approvals or roles", async () => {
-  const db = verifiedContext("core-uid").firestore();
-  const target = doc(db, "members/member-b");
-
-  await assertSucceeds(getDoc(target));
-  await assertSucceeds(
-    getDocs(
-      query(collection(db, "members"), where("membershipStatus", "==", "active")),
-    ),
-  );
-  await assertSucceeds(
-    updateDoc(target, {
-      fullName: "Updated by Core Team",
-      rollNumber: "654321",
-      className: "IT",
-      division: "B",
-      academicYear: "2027-28",
-      aicteHours: 32,
-      workingGroup: "outreach",
-      updatedAt: serverTimestamp(),
-    }),
-  );
-  await assertFails(
-    updateDoc(target, {
-      membershipStatus: "inactive",
-      updatedAt: serverTimestamp(),
-    }),
-  );
-  await assertFails(
-    updateDoc(target, {
-      role: "core_team",
-      updatedAt: serverTimestamp(),
-    }),
-  );
-  await assertFails(
-    setDoc(
-      doc(db, "members/new-member"),
-      memberProfile("new-member", "member", "active"),
-    ),
-  );
-  await assertSucceeds(
-    setDoc(doc(db, "members/member-b/registrations/core-created"), {
-      eventId: "event-2",
-      eventName: "Workshop",
-      registrationDate: "2026-09-01",
-      registrationDetails: "Core Team managed registration",
-      attended: false,
-      updatedAt: serverTimestamp(),
-    }),
-  );
-  await assertSucceeds(
-    updateDoc(doc(db, "members/member-b/registrations/reg-1"), {
-      attended: false,
-      updatedAt: serverTimestamp(),
-    }),
-  );
-  await assertSucceeds(
-    deleteDoc(doc(db, "members/member-b/registrations/reg-1")),
-  );
-  await assertFails(deleteDoc(target));
+test("Revoked or deleted profile cannot retain privileged writes", async () => {
+  const db = dbFor("chair");
+  await env.withSecurityRulesDisabled(async c => { await updateDoc(doc(c.firestore(), "users/chair"), { approvalStatus: "rejected" }); });
+  await assertFails(setDoc(doc(db, "events", "zyxwvutsrqponmlkjihg"), event()));
+  await env.withSecurityRulesDisabled(async c => { await deleteDoc(doc(c.firestore(), "users/chair")); });
+  await assertFails(setDoc(doc(db, "events", "zyxwvutsrqponmlkjihg"), event()));
 });
-
-test("profile roles do not grant Core Team access without trusted access control", async () => {
-  const db = verifiedContext("member-candidate").firestore();
-
-  await assertSucceeds(getDoc(doc(db, "members/member-candidate")));
-  await assertFails(getDoc(doc(db, "members/member-b")));
-  await assertFails(getDocs(collection(db, "members")));
+test("Admin creates event and updates hours; identity and academic year immutable", async () => {
+  const db = dbFor("chair"), ref = doc(db, "events", "zyxwvutsrqponmlkjihg");
+  await assertSucceeds(setDoc(ref, event()));
+  await assertSucceeds(updateDoc(ref, { aicteHours: 2.5 }));
+  for (const values of [{ aicteHours: 0 }, { aicteHours: -1 }, { aicteHours: "4" }, { name: "x".repeat(161) }, { date: "tomorrow" }, { createdBy: "mentor" }, { academicYear: "2025-26" }, { extra: true }]) await assertFails(updateDoc(ref, values));
 });
-
-test("only an active, approved Core Team member can use Core Team permissions", async () => {
-  const db = verifiedContext("pending-user").firestore();
-  await testEnv.withSecurityRulesDisabled(async (context) => {
-    await setDoc(doc(context.firestore(), "accessControl/pending-user"), {
-      role: "coreTeam",
-    });
-  });
-
-  await assertFails(getDoc(doc(db, "members/member-a")));
-  await assertFails(getDocs(collection(db, "members")));
-  await assertFails(
-    getDoc(doc(db, "members/pending-user/registrations/reg-1")),
-  );
+test("Attendance upsert uses one pair, allows check/uncheck, and validates references", async () => {
+  const db = dbFor("chair"), ref = doc(db, "attendance", `member__${eventId}`);
+  await assertSucceeds(setDoc(ref, attendance()));
+  await assertSucceeds(setDoc(ref, { ...attendance(), attended: false }));
+  await assertFails(setDoc(doc(db, "attendance/duplicate"), attendance()));
+  for (const values of [{ attended: "yes" }, { updatedBy: "mentor" }, { memberId: "pending" }, { eventId: "zyxwvutsrqponmlkjihg" }, { extra: true }]) await assertFails(setDoc(ref, { ...attendance(), ...values }));
+  await env.withSecurityRulesDisabled(async c => { await updateDoc(doc(c.firestore(), "users/member"), { academicYear: "2025-26" }); });
+  await assertFails(setDoc(ref, attendance()));
 });
-
-test("Admin can assign and revoke Core Team but cannot grant Admin through the app", async () => {
-  const adminDb = verifiedContext("owner-uid", ownerEmail).firestore();
-  const member = doc(adminDb, "members/member-b");
-  const access = doc(adminDb, "accessControl/member-b");
-
-  await assertSucceeds(
-    updateDoc(member, {
-      role: "core_team",
-      updatedAt: serverTimestamp(),
-    }),
-  );
-  await assertSucceeds(setDoc(access, { role: "coreTeam" }));
-  await assertSucceeds(getDoc(access));
-
-  await assertFails(
-    setDoc(doc(adminDb, "accessControl/another-admin"), { role: "admin" }),
-  );
-  await assertFails(
-    setDoc(doc(adminDb, "accessControl/member-a"), { role: "coreTeam" }),
-  );
-  await assertFails(
-    updateDoc(doc(adminDb, "accessControl/core-uid"), { role: "admin" }),
-  );
-  await assertSucceeds(deleteDoc(access));
-});
-
-test("access-control data is private to Admin and Core Team cannot change permissions", async () => {
-  const adminDb = verifiedContext("owner-uid", ownerEmail).firestore();
-  const coreDb = verifiedContext("core-uid").firestore();
-
-  await assertSucceeds(getDocs(collection(adminDb, "accessControl")));
-  await assertFails(getDoc(doc(coreDb, "accessControl/core-uid")));
-  await assertFails(
-    setDoc(doc(coreDb, "accessControl/member-a"), { role: "admin" }),
-  );
-  await assertFails(
-    updateDoc(doc(coreDb, "accessControl/core-uid"), {
-      role: "admin",
-    }),
-  );
-});
-
-test("unverified and unauthenticated users cannot access member data", async () => {
-  const unverifiedDb = testEnv
-    .authenticatedContext("member-a", {
-      email: "member-a@tcetmumbai.in",
-      email_verified: false,
-    })
-    .firestore();
-  const anonymousDb = testEnv.unauthenticatedContext().firestore();
-
-  await assertFails(getDoc(doc(unverifiedDb, "members/member-a")));
-  await assertFails(getDoc(doc(anonymousDb, "members/member-a")));
-});
-
-test("an Auth admin claim without a console-managed access record grants no privileges", async () => {
-  const db = testEnv
-    .authenticatedContext("unassigned-admin", {
-      email: ownerEmail,
-      email_verified: true,
-      admin: true,
-    })
-    .firestore();
-
-  await assertFails(getDocs(collection(db, "members")));
-  await assertFails(
-    updateDoc(doc(db, "members/member-a"), {
-      role: "core_team",
-      updatedAt: serverTimestamp(),
-    }),
-  );
-});
-
-test("eventManager access remains separate from member permissions", async () => {
-  const db = verifiedContext("event-manager").firestore();
-
-  await assertSucceeds(getDoc(doc(db, "events/draft")));
-  await assertFails(getDoc(doc(db, "members/member-a")));
-  await assertFails(getDocs(collection(db, "members")));
-});
-
-test("public visitors can read published events but not drafts", async () => {
-  const db = testEnv.unauthenticatedContext().firestore();
-
-  await assertSucceeds(getDoc(doc(db, "events/published")));
-  await assertFails(getDoc(doc(db, "events/draft")));
+test("Settings and unrelated paths deny client writes even for admin", async () => {
+  const db = dbFor("chair");
+  await assertFails(updateDoc(doc(db, "settings/club"), { hoursPerAICTEPoint: 1 }));
+  await assertFails(setDoc(doc(db, "accessControl/chair"), { role: "admin" }));
+  await assertFails(setDoc(doc(db, "members/chair"), { role: "admin" }));
 });

@@ -2,7 +2,7 @@ import type { ClubEvent, AttendanceRecord, AICTESummary } from "@/types";
 
 /**
  * Calculates total attended hours and resulting AICTE points for a member.
- * College rule: 4 hours = 1 AICTE point.
+ * Conversion factor is supplied from settings/club (normally 4 hours per point).
  *
  * @param memberId - Member unique identifier
  * @param events - List of events for the academic year or overall
@@ -12,7 +12,8 @@ import type { ClubEvent, AttendanceRecord, AICTESummary } from "@/types";
 export function calculateAICTEPoints(
   memberId: string,
   events: ClubEvent[],
-  attendanceRecords: AttendanceRecord[]
+  attendanceRecords: AttendanceRecord[],
+  hoursPerAICTEPoint: number
 ): AICTESummary {
   // Build a fast lookup set of attended event IDs for this member
   const attendedEventIds = new Set(
@@ -32,8 +33,9 @@ export function calculateAICTEPoints(
     }
   }
 
-  // 4 hours = 1 AICTE point
-  const points = totalHours / 4;
+  // Use the current server-provided conversion factor in both portals.
+  if (!Number.isFinite(hoursPerAICTEPoint) || hoursPerAICTEPoint <= 0) throw new Error("Invalid AICTE conversion factor in club settings.");
+  const points = totalHours / hoursPerAICTEPoint;
 
   // Format cleanly without trailing zeros (e.g., "1.5", "2", "0.75", "0")
   const formattedPoints = formatCleanNumber(points);

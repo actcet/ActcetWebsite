@@ -48,9 +48,9 @@ export default function MobileMenu({
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     onClose();
-    logout();
+    await logout();
     onNavigate?.("login");
   };
 

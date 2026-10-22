@@ -9,8 +9,8 @@ interface AccountRejectedPageProps {
 export default function AccountRejectedPage({ onBackToLogin }: AccountRejectedPageProps) {
   const { rejectedUser, clearPendingState } = useAuth();
 
-  const handleBackToLogin = () => {
-    clearPendingState();
+  const handleBackToLogin = async () => {
+    await clearPendingState();
     onBackToLogin();
   };
 

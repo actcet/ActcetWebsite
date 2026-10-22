@@ -41,8 +41,11 @@ export interface Member {
   academicYear: string;
   email: string;
   role: UserRole;
+  requestedRole: UserRole;
   approvalStatus: ApprovalStatus;
   createdAt: string;
+  approvedAt: string | null;
+  approvedBy: string | null;
   rejectionReason?: string;
 }
 

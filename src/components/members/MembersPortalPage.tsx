@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from "react";
 import { Search, X, Check, Minus, Award, Calendar, Sparkles, Compass, Users } from "lucide-react";
+import PortalDataStatus from "@/components/ui/PortalDataStatus";
 import { useClubData } from "@/context/ClubDataContext";
 import { calculateAICTEPoints } from "@/lib/aicte";
 import type { Member, ClubEvent } from "@/types";
 
 export default function MembersPortalPage() {
-  const { approvedMembers, events, attendance, academicYears } = useClubData();
+  const { approvedMembers, events, attendance, academicYears, settings, isLoading, error } = useClubData();
   const [searchQuery, setSearchQuery] = useState("");
 
   // Normalized, field-aware filter for members
@@ -57,6 +58,8 @@ export default function MembersPortalPage() {
 
   const hasAnyMembers = approvedMembers.length > 0;
   const hasSearchResults = groupedData.some((g) => g.members.length > 0);
+
+  if (error || isLoading || !settings) return <PortalDataStatus error={error} />;
 
   return (
     <div className="min-h-screen pt-28 pb-24 px-4 sm:px-6 lg:px-[6vw] bg-[#070d1f] relative overflow-hidden">
@@ -244,7 +247,7 @@ export default function MembersPortalPage() {
                         </tr>
                       ) : (
                         yearMembers.map((member) => {
-                          const aicte = calculateAICTEPoints(member.id, yearEvents, attendance);
+                          const aicte = calculateAICTEPoints(member.id, yearEvents, attendance, settings.hoursPerAICTEPoint);
 
                           return (
                             <tr
@@ -346,7 +349,7 @@ export default function MembersPortalPage() {
 
                 {/* FOOTER SUMMARY */}
                 <div className="px-6 py-3 border-t border-white/10 bg-white/[0.02] flex items-center justify-between text-xs text-ink-soft">
-                  <span>AICTE Formula: 4 hours of attended events = 1 AICTE point</span>
+                  <span>AICTE Formula: {settings.hoursPerAICTEPoint} hours of attended events = 1 AICTE point</span>
                   <span>Auto-calculated in real time</span>
                 </div>
               </div>

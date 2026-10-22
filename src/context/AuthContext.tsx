@@ -1,181 +1,81 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import type { Member, LoginInput, RegistrationInput, ApprovalStatus } from "@/types";
-import { mockDataService } from "@/services/mockDataService";
-import { useToast } from "./ToastContext";
-
-interface LoginResult {
-  success: boolean;
-  member?: Member;
-  status?: ApprovalStatus;
-  message?: string;
-}
-
-interface RegisterResult {
-  success: boolean;
-  member?: Member;
-  error?: string;
-}
+import React, { createContext, useContext, useEffect, useRef, useState } from "react";
+import { onIdTokenChanged, signOut } from "firebase/auth";
+import type { User } from "firebase/auth";
+import { doc, onSnapshot } from "firebase/firestore";
+import { auth, authReady, db } from "@/lib/firebase";
+import { loginAccount, memberFromDocument, portalError, registerAccount } from "@/services/portalService";
+import type { ApprovalStatus, LoginInput, Member, RegistrationInput } from "@/types";
 
 interface AuthContextType {
-  currentUser: Member | null;
-  isAuthenticated: boolean;
-  isAdmin: boolean;
-  isLoading: boolean;
-  login: (input: LoginInput) => Promise<LoginResult>;
-  register: (input: RegistrationInput) => Promise<RegisterResult>;
-  logout: () => void;
-  switchDemoUser: (memberId: string) => void;
-  pendingRegisteredUser: Member | null;
-  rejectedUser: Member | null;
-  setPendingRegisteredUser: (member: Member | null) => void;
-  clearPendingState: () => void;
-  // Modal backwards compatibility
-  isAuthModalOpen: boolean;
-  authModalMode: "login" | "register";
-  openAuthModal: (mode?: "login" | "register") => void;
-  closeAuthModal: () => void;
-  clearPendingRegisteredUser: () => void;
+  currentUser: Member | null; authUser: User | null;
+  isAuthenticated: boolean; isAdmin: boolean; isLoading: boolean;
+  profileMissing: boolean; error: string | null;
+  login: (input: LoginInput) => Promise<{ success: boolean; member?: Member; status?: ApprovalStatus; message?: string }>;
+  register: (input: RegistrationInput) => Promise<{ success: boolean; member?: Member; error?: string }>;
+  logout: () => Promise<void>;
+  pendingRegisteredUser: Member | null; rejectedUser: Member | null;
+  clearPendingState: () => Promise<void>;
 }
-
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<Member | null>(null);
+  const [authUser, setAuthUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [pendingRegisteredUser, setPendingRegisteredUser] = useState<Member | null>(null);
-  const [rejectedUser, setRejectedUser] = useState<Member | null>(null);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [authModalMode, setAuthModalMode] = useState<"login" | "register">("login");
-  const { showToast } = useToast();
-
-  const syncCurrentUser = useCallback(() => {
-    const user = mockDataService.getCurrentUser();
-    setCurrentUser(user);
-    setIsLoading(false);
-  }, []);
-
+  const [profileMissing, setProfileMissing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const operation = useRef(false);
   useEffect(() => {
-    syncCurrentUser();
-    const unsubscribe = mockDataService.subscribe(syncCurrentUser);
-    return () => unsubscribe();
-  }, [syncCurrentUser]);
-
-  const login = async (input: LoginInput): Promise<LoginResult> => {
-    const result = mockDataService.loginUser(input);
-    if (result.success && result.member) {
-      setCurrentUser(result.member);
-      setPendingRegisteredUser(null);
-      setRejectedUser(null);
-      setIsAuthModalOpen(false);
-      showToast(`Welcome back, ${result.member.name}!`, "success");
-      return { success: true, member: result.member };
-    }
-
-    if (result.status === "pending" && result.member) {
-      setPendingRegisteredUser(result.member);
-      return {
-        success: false,
-        status: "pending",
-        member: result.member,
-        message: result.message,
-      };
-    }
-
-    if (result.status === "rejected" && result.member) {
-      setRejectedUser(result.member);
-      return {
-        success: false,
-        status: "rejected",
-        member: result.member,
-        message: result.message,
-      };
-    }
-
-    return { success: false, message: result.message };
+    let alive = true;
+    let unsubscribeProfile = () => {};
+    let unsubscribeAuth = () => {};
+    authReady.then(() => {
+      if (!alive) return;
+      unsubscribeAuth = onIdTokenChanged(auth, user => {
+        unsubscribeProfile();
+        setAuthUser(user); setCurrentUser(null); setProfileMissing(false); setError(null);
+        if (!user) { setIsLoading(false); return; }
+        if (!operation.current) setIsLoading(true);
+        unsubscribeProfile = onSnapshot(doc(db, "users", user.uid), snapshot => {
+          if (!alive) return;
+          // Sign-in validates the retained name field before exposing an approved profile.
+          if (operation.current) return;
+          try {
+            setCurrentUser(snapshot.exists() ? memberFromDocument(snapshot.id, snapshot.data()) : null);
+            setProfileMissing(!snapshot.exists()); setError(null);
+          } catch (cause) { setCurrentUser(null); setError(portalError(cause)); }
+          setIsLoading(false);
+        }, cause => { if (alive) { setCurrentUser(null); setError(portalError(cause)); setIsLoading(false); } });
+      }, cause => { if (alive) { setCurrentUser(null); setError(portalError(cause)); setIsLoading(false); } });
+    }).catch(cause => { if (alive) { setError(portalError(cause)); setIsLoading(false); } });
+    return () => { alive = false; unsubscribeAuth(); unsubscribeProfile(); };
+  }, []);
+  const login: AuthContextType["login"] = async input => {
+    operation.current = true; setError(null);
+    try {
+      await authReady;
+      const member = await loginAccount(input);
+      setCurrentUser(member); setProfileMissing(!member);
+      if (!member) return { success: false, message: "Your account needs a member profile. Complete the registration form below." };
+      return { success: member.approvalStatus === "approved", member, status: member.approvalStatus };
+    } catch (cause) { return { success: false, message: portalError(cause) }; }
+    finally { operation.current = false; }
   };
-
-  const register = async (input: RegistrationInput): Promise<RegisterResult> => {
-    const result = mockDataService.registerUser(input);
-    if (result.success && result.member) {
-      setPendingRegisteredUser(result.member);
-      showToast("Account registration submitted!", "info");
-      return { success: true, member: result.member };
-    }
-    return { success: false, error: result.error };
+  const register: AuthContextType["register"] = async input => {
+    operation.current = true; setError(null);
+    try {
+      await authReady;
+      const member = await registerAccount(input);
+      setCurrentUser(member); setProfileMissing(false);
+      return { success: true, member };
+    } catch (cause) { const message = portalError(cause); setError(message); return { success: false, error: message }; }
+    finally { operation.current = false; }
   };
-
-  const logout = () => {
-    mockDataService.logoutUser();
-    setCurrentUser(null);
-    setPendingRegisteredUser(null);
-    setRejectedUser(null);
-    setIsAuthModalOpen(false);
-    showToast("You have been logged out.", "info");
+  const logout = async () => {
+    try { await signOut(auth); setCurrentUser(null); setProfileMissing(false); setError(null); }
+    catch (cause) { setError(portalError(cause)); }
   };
-
-  const switchDemoUser = (memberId: string) => {
-    const member = mockDataService.setCurrentUserById(memberId);
-    if (member) {
-      setCurrentUser(member);
-      setPendingRegisteredUser(null);
-      setRejectedUser(null);
-      showToast(`Switched active user to ${member.name} (${member.role})`, "success");
-    }
-  };
-
-  const clearPendingState = () => {
-    setPendingRegisteredUser(null);
-    setRejectedUser(null);
-  };
-
-  const openAuthModal = (mode: "login" | "register" = "login") => {
-    setAuthModalMode(mode);
-    setIsAuthModalOpen(true);
-  };
-
-  const closeAuthModal = () => {
-    setIsAuthModalOpen(false);
-  };
-
-  const clearPendingRegisteredUser = () => {
-    setPendingRegisteredUser(null);
-  };
-
-  const isAdmin =
-    currentUser?.approvalStatus === "approved" &&
-    (currentUser?.role === "Chairperson" || currentUser?.role === "Mentor");
-
-  return (
-    <AuthContext.Provider
-      value={{
-        currentUser,
-        isAuthenticated: !!currentUser && currentUser.approvalStatus === "approved",
-        isAdmin,
-        isLoading,
-        login,
-        register,
-        logout,
-        switchDemoUser,
-        pendingRegisteredUser,
-        rejectedUser,
-        setPendingRegisteredUser,
-        clearPendingState,
-        isAuthModalOpen,
-        authModalMode,
-        openAuthModal,
-        closeAuthModal,
-        clearPendingRegisteredUser,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+  const isAuthenticated = !!authUser && currentUser?.approvalStatus === "approved" && !error;
+  const isAdmin = isAuthenticated && (currentUser?.role === "Chairperson" || currentUser?.role === "Mentor");
+  return <AuthContext.Provider value={{ currentUser, authUser, isAuthenticated, isAdmin, isLoading, profileMissing, error, login, register, logout, pendingRegisteredUser: currentUser?.approvalStatus === "pending" ? currentUser : null, rejectedUser: currentUser?.approvalStatus === "rejected" ? currentUser : null, clearPendingState: logout }}>{children}</AuthContext.Provider>;
 }
-
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
-}
+export function useAuth() { const context = useContext(AuthContext); if (!context) throw new Error("useAuth must be used within an AuthProvider"); return context; }

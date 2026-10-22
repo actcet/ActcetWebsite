@@ -1,0 +1,18 @@
+{
+  "score": 4,
+  "summary": "Prototype rules passed 22 emulator groups and live unauthorized-request checks. Live profiles are the authority; requested roles never grant privileges. Remaining operational requirements are documented.",
+  "findings": [
+    {
+      "check": "Auth identity lifecycle",
+      "severity": "minor",
+      "issue": "Disabling or deleting Firebase Auth alone does not immediately invalidate an already-issued token. Rules cannot query the Auth directory.",
+      "recommendation": "Revoke or delete the users profile before disabling/deleting Auth so current Firestore authorization is removed immediately. Follow the owner procedure."
+    },
+    {
+      "check": "Read scope and scale",
+      "severity": "minor",
+      "issue": "Approved members can read all approved profiles/emails and portal attendance, as requested; collection listeners are unpaginated for the club-sized dataset.",
+      "recommendation": "Keep approvals intentional. Reassess field visibility, session query limits and pagination if the club or privacy requirements grow."
+    }
+  ]
+}

@@ -1,240 +1,91 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-    // accessControl/{uid} is trusted authorization data. The Chairperson's
-    // initial admin record is provisioned in Firebase Console.
-    // members/{uid} is the Auth user's application and approval record.
-    function signedIn() {
-      return request.auth != null;
+    // users/{Auth UID}: application profile and live, owner/admin-verified authority.
+    // events/{auto ID}: portal events; attendance/{UID}__{event ID}: unique pair.
+    // settings/club: non-sensitive academic session and AICTE conversion settings.
+    // Bootstrap: trusted project owner provisions one verified Auth UID via IAM.
+    // No client can create an approved profile or modify its own authorization.
+    function signedIn() { return request.auth != null; }
+    function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
+    function approved() {
+      return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.approvalStatus == 'approved';
     }
-
-    function verifiedCollegeAccount() {
-      return signedIn() &&
-        'email_verified' in request.auth.token &&
-        request.auth.token.email_verified == true &&
-        'email' in request.auth.token &&
-        request.auth.token.email.matches('^[^\\s@]+@tcetmumbai\\.in$');
+    function admin() {
+      return approved() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['Chairperson', 'Mentor'];
     }
-
-    function hasAccessRole(role) {
-      return verifiedCollegeAccount() &&
-        exists(/databases/$(database)/documents/accessControl/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/accessControl/$(request.auth.uid)).data.role == role;
+    function roleValid(role) {
+      return role in ['Mentor', 'Chairperson', 'Vice Chairperson', 'Creative Head', 'Documentation Head', 'Event Management Head', 'Technical Head', 'Working Committee - Technical', 'Working Committee - Creative', 'Working Committee - Event', 'Working Committee - Documentation', 'Member', 'Guest'];
     }
-
-    function isAdmin() {
-      return hasAccessRole('admin');
+    function text(value, max) { return value is string && value.size() > 0 && value.size() <= max; }
+    function session(value) { return value is string && value.matches('^[0-9]{4}-[0-9]{2}$'); }
+    function validUser(d) {
+      return d.keys().hasAll(['name', 'email', 'branch', 'division', 'year', 'academicYear', 'requestedRole', 'role', 'approvalStatus', 'createdAt', 'approvedAt', 'approvedBy']) &&
+        d.keys().hasOnly(['name', 'email', 'branch', 'division', 'year', 'academicYear', 'requestedRole', 'role', 'approvalStatus', 'createdAt', 'approvedAt', 'approvedBy', 'rejectionReason']) &&
+        text(d.name, 120) && text(d.email, 254) && d.email.matches('^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$') &&
+        d.branch in ['Comp', 'AIML', 'AIDS', 'IOT', 'Mech', 'ECS', 'Civil', 'CSE(CS)', 'CSE(IoT)', 'EXTC', 'IT'] &&
+        d.division in ['A', 'B', 'C', 'D'] && d.year in ['SE', 'TE', 'BE'] && session(d.academicYear) &&
+        roleValid(d.requestedRole) && roleValid(d.role) && d.approvalStatus in ['pending', 'approved', 'rejected'] &&
+        d.createdAt is timestamp && (d.approvedAt == null || d.approvedAt is timestamp) &&
+        (d.approvedBy == null || text(d.approvedBy, 128)) &&
+        (!('rejectionReason' in d) || (d.rejectionReason is string && d.rejectionReason.size() <= 1000));
     }
-
-    function isCoreTeam() {
-      return hasAccessRole('coreTeam') &&
-        exists(/databases/$(database)/documents/members/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/members/$(request.auth.uid)).data.membershipStatus == 'active' &&
-        get(/databases/$(database)/documents/members/$(request.auth.uid)).data.role == 'core_team';
+    function validEvent(d) {
+      return d.keys().hasAll(['name', 'academicYear', 'date', 'aicteHours', 'description', 'createdAt', 'createdBy']) &&
+        d.keys().hasOnly(['name', 'academicYear', 'date', 'aicteHours', 'description', 'createdAt', 'createdBy']) &&
+        text(d.name, 160) && session(d.academicYear) && d.date is timestamp &&
+        d.aicteHours is number && d.aicteHours > 0 && d.aicteHours <= 10000 &&
+        d.description is string && d.description.size() <= 4000 &&
+        d.createdAt is timestamp && text(d.createdBy, 128);
     }
-
-    function isEventManager() {
-      return isAdmin() || isCoreTeam() || hasAccessRole('eventManager');
+    match /users/{uid} {
+      allow get: if isOwner(uid) || admin() || (approved() && resource.data.approvalStatus == 'approved');
+      // Ordinary members must query approvalStatus == approved; rules are not filters.
+      allow list: if admin() || (approved() && resource.data.approvalStatus == 'approved');
+      allow create: if isOwner(uid) && validUser(request.resource.data) &&
+        request.resource.data.email == request.auth.token.email &&
+        request.resource.data.approvalStatus == 'pending' && request.resource.data.role == 'Member' &&
+        request.resource.data.approvedAt == null && request.resource.data.approvedBy == null &&
+        !('rejectionReason' in request.resource.data) && request.resource.data.createdAt == request.time;
+      allow update: if admin() && !isOwner(uid) && validUser(request.resource.data) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role', 'approvalStatus', 'approvedAt', 'approvedBy', 'rejectionReason']) &&
+        request.resource.data.approvedBy == request.auth.uid &&
+        ((request.resource.data.approvalStatus == 'approved' && request.resource.data.approvedAt == request.time) ||
+         (request.resource.data.approvalStatus == 'rejected' && request.resource.data.role == 'Member' && request.resource.data.approvedAt == null));
+      allow delete: if false;
     }
-
-    function isApprovedMember(memberId) {
-      return exists(/databases/$(database)/documents/members/$(memberId)) &&
-        get(/databases/$(database)/documents/members/$(memberId)).data.membershipStatus == 'active';
-    }
-
-    function validMember(data, memberId) {
-      return data.keys().hasAll([
-          'fullName',
-          'collegeEmail',
-          'rollNumber',
-          'className',
-          'division',
-          'academicYear',
-          'phoneNumber',
-          'profilePhotoUrl',
-          'membershipStatus',
-          'role',
-          'aicteHours',
-          'createdAt',
-          'updatedAt'
-        ]) &&
-        data.fullName is string &&
-        data.fullName.size() > 0 &&
-        data.fullName.size() <= 120 &&
-        data.collegeEmail is string &&
-        data.collegeEmail.matches('^[^\\s@]+@tcetmumbai\\.in$') &&
-        data.rollNumber is string &&
-        data.rollNumber.size() > 0 &&
-        data.rollNumber.size() <= 40 &&
-        data.className is string &&
-        data.className.size() > 0 &&
-        data.className.size() <= 40 &&
-        data.division is string &&
-        data.division.size() > 0 &&
-        data.division.size() <= 20 &&
-        data.academicYear is string &&
-        data.academicYear.size() > 0 &&
-        data.academicYear.size() <= 20 &&
-        data.phoneNumber is string &&
-        data.phoneNumber.size() <= 30 &&
-        data.profilePhotoUrl is string &&
-        data.profilePhotoUrl.size() <= 2048 &&
-        (data.profilePhotoUrl == '' ||
-          data.profilePhotoUrl.matches('^https://[^\\s]+$')) &&
-        data.membershipStatus in ['pending', 'active', 'inactive', 'rejected'] &&
-        data.role in ['member', 'core_team', 'wc'] &&
-        data.aicteHours is number &&
-        data.aicteHours >= 0 &&
-        data.aicteHours <= 5000 &&
-        data.createdAt is timestamp &&
-        data.updatedAt is timestamp &&
-        memberId is string;
-    }
-
-    function validSelfRegistration(data, memberId) {
-      return verifiedCollegeAccount() &&
-        request.auth.uid == memberId &&
-        data.keys().hasOnly([
-          'fullName',
-          'collegeEmail',
-          'rollNumber',
-          'className',
-          'division',
-          'academicYear',
-          'phoneNumber',
-          'profilePhotoUrl',
-          'membershipStatus',
-          'role',
-          'aicteHours',
-          'createdAt',
-          'updatedAt'
-        ]) &&
-        validMember(data, memberId) &&
-        data.collegeEmail == request.auth.token.email &&
-        data.membershipStatus == 'pending' &&
-        data.role == 'member' &&
-        data.aicteHours == 0 &&
-        data.createdAt == request.time &&
-        data.updatedAt == request.time;
-    }
-
-    function validEvent(eventId) {
-      let data = request.resource.data;
-      return data.keys().hasAll([
-          'id',
-          'name',
-          'date',
-          'location',
-          'domain',
-          'category',
-          'participants',
-          'objective',
-          'outcome',
-          'image',
-          'gallery',
-          'status'
-        ]) &&
-        data.keys().hasOnly([
-          'id',
-          'name',
-          'date',
-          'location',
-          'domain',
-          'category',
-          'participants',
-          'objective',
-          'outcome',
-          'image',
-          'gallery',
-          'status'
-        ]) &&
-        data.id is string &&
-        data.id == eventId &&
-        data.name is string &&
-        data.name.size() > 0 &&
-        data.name.size() <= 160 &&
-        data.date is string &&
-        data.date.size() > 0 &&
-        data.date.size() <= 100 &&
-        data.location is string &&
-        data.location.size() <= 200 &&
-        data.domain is string &&
-        data.domain.size() <= 80 &&
-        data.category is string &&
-        data.category.size() <= 80 &&
-        data.participants is string &&
-        data.participants.size() <= 80 &&
-        data.objective is string &&
-        data.objective.size() <= 2000 &&
-        data.outcome is string &&
-        data.outcome.size() <= 2000 &&
-        data.image is string &&
-        data.image.size() <= 2048 &&
-        data.gallery is list &&
-        data.gallery.size() <= 30 &&
-        data.status in ['draft', 'published'];
-    }
-
     match /events/{eventId} {
-      allow get, list: if isEventManager() ||
-        resource.data.status == 'published';
-      allow create, update: if isEventManager() && validEvent(eventId);
-      allow delete: if isEventManager();
+      allow read: if approved();
+      allow create: if admin() && eventId.matches('^[A-Za-z0-9]{20}$') && validEvent(request.resource.data) &&
+        request.resource.data.createdAt == request.time && request.resource.data.createdBy == request.auth.uid;
+      allow update: if admin() && validEvent(request.resource.data) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'date', 'aicteHours', 'description']);
+      allow delete: if false;
     }
-
-    match /accessControl/{userId} {
-      allow get, list: if isAdmin();
-      allow create, update: if isAdmin() &&
-        request.resource.data.keys().hasOnly(['role']) &&
-        request.resource.data.keys().hasAll(['role']) &&
-        request.resource.data.role in ['coreTeam', 'eventManager'] &&
-        exists(/databases/$(database)/documents/members/$(userId)) &&
-        get(/databases/$(database)/documents/members/$(userId)).data.membershipStatus == 'active' &&
-        (
-          request.resource.data.role != 'coreTeam' ||
-          get(/databases/$(database)/documents/members/$(userId)).data.role == 'core_team'
-        );
-      allow delete: if isAdmin() &&
-        resource.data.role in ['coreTeam', 'eventManager'];
+    match /attendance/{pairId} {
+      allow read: if approved();
+      allow create, update: if admin() &&
+        request.resource.data.keys().hasAll(['memberId', 'eventId', 'attended', 'updatedAt', 'updatedBy']) &&
+        request.resource.data.keys().hasOnly(['memberId', 'eventId', 'attended', 'updatedAt', 'updatedBy']) &&
+        text(request.resource.data.memberId, 128) && request.resource.data.eventId is string &&
+        request.resource.data.eventId.matches('^[A-Za-z0-9]{20}$') &&
+        pairId == request.resource.data.memberId + '__' + request.resource.data.eventId &&
+        request.resource.data.attended is bool && request.resource.data.updatedAt == request.time &&
+        request.resource.data.updatedBy == request.auth.uid &&
+        exists(/databases/$(database)/documents/users/$(request.resource.data.memberId)) &&
+        exists(/databases/$(database)/documents/events/$(request.resource.data.eventId)) &&
+        get(/databases/$(database)/documents/users/$(request.resource.data.memberId)).data.approvalStatus == 'approved' &&
+        get(/databases/$(database)/documents/users/$(request.resource.data.memberId)).data.academicYear ==
+          get(/databases/$(database)/documents/events/$(request.resource.data.eventId)).data.academicYear;
+      allow delete: if false;
     }
-
-    match /members/{memberId} {
-      allow get: if isAdmin() ||
-        (isCoreTeam() && resource.data.membershipStatus == 'active') ||
-        (verifiedCollegeAccount() && request.auth.uid == memberId);
-      allow list: if isAdmin() ||
-        (isCoreTeam() && resource.data.membershipStatus == 'active');
-      allow create: if validSelfRegistration(request.resource.data, memberId) ||
-        (isAdmin() && validMember(request.resource.data, memberId));
-      allow update: if
-        (isAdmin() && validMember(request.resource.data, memberId)) ||
-        (isCoreTeam() &&
-          resource.data.membershipStatus == 'active' &&
-          request.resource.data.membershipStatus == resource.data.membershipStatus &&
-          request.resource.data.role == resource.data.role &&
-          validMember(request.resource.data, memberId)) ||
-        (verifiedCollegeAccount() &&
-          request.auth.uid == memberId &&
-          request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['phoneNumber', 'profilePhotoUrl', 'updatedAt']) &&
-          request.resource.data.updatedAt == request.time &&
-          validMember(request.resource.data, memberId));
-      allow delete: if isAdmin();
-
-      match /{memberCollection}/{memberDocument=**} {
-        allow read: if isAdmin() ||
-          (isCoreTeam() && isApprovedMember(memberId)) ||
-          (verifiedCollegeAccount() &&
-            request.auth.uid == memberId &&
-            isApprovedMember(memberId));
-        allow create, update, delete: if isAdmin() ||
-          (isCoreTeam() && isApprovedMember(memberId));
-      }
+    match /settings/{id} {
+      // Needed to populate the registration form before a visitor has an account.
+      allow get: if id == 'club';
+      allow list: if false;
+      allow create, update, delete: if false; // Trusted owner/IAM only; preserves existing settings.
     }
-
-    match /{document=**} {
-      allow read, write: if false;
-    }
+    match /{document=**} { allow read, write: if false; }
   }
 }

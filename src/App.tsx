@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import Hero from "@/components/sections/Hero";
 import IsroAssociation from "@/components/sections/IsroAssociation";
 import About from "@/components/sections/About";
@@ -50,7 +50,10 @@ function HomePageSections() {
 
 function MainContent() {
   const { currentRoute, navigateTo } = useAppRouter();
-  const { currentUser, isAuthenticated, isAdmin, isLoading } = useAuth();
+  const { currentUser, isAuthenticated, isAdmin, isLoading, error, profileMissing, logout } = useAuth();
+  useEffect(() => {
+    if (isAuthenticated && ["login", "pending-approval", "rejected"].includes(currentRoute)) navigateTo("home");
+  }, [isAuthenticated, currentRoute, navigateTo]);
 
   // 1. Loading splash to avoid brief flash of protected content
   if (isLoading) {
@@ -60,8 +63,9 @@ function MainContent() {
   // 2. AUTH LAYOUT (STANDALONE PAGES — NO WEBSITE NAVBAR / SECTIONS BEHIND)
   // If the user is NOT authenticated with an approved account:
   if (!isAuthenticated) {
+    if (error) return <div className="min-h-screen bg-[#070d1f] text-white flex flex-col items-center justify-center p-6" role="alert"><h1 className="text-2xl font-display mb-4">Unable to load your account</h1><p>{error}</p><button className="mt-5 bg-primary rounded-xl px-5 py-3" onClick={() => window.location.reload()}>Retry</button><button className="mt-4" onClick={async () => { await logout(); navigateTo("login"); }}>Back to Login</button></div>;
     // If user's account is pending approval:
-    if (currentUser?.approvalStatus === "pending" || currentRoute === "pending-approval") {
+    if (currentUser?.approvalStatus === "pending") {
       return (
         <PendingApprovalPage
           onBackToLogin={() => navigateTo("login")}
@@ -70,7 +74,7 @@ function MainContent() {
     }
 
     // If user's account has been rejected:
-    if (currentUser?.approvalStatus === "rejected" || currentRoute === "rejected") {
+    if (currentUser?.approvalStatus === "rejected") {
       return (
         <AccountRejectedPage
           onBackToLogin={() => navigateTo("login")}
@@ -80,11 +84,15 @@ function MainContent() {
 
     // Default first page: Standalone Login / Registration Page!
     return (
+      <>
+      {profileMissing && <div className="bg-[#070d1f] text-amber-200 text-center px-6 pt-6" role="status">Your sign-in account exists, but its member profile is incomplete. Complete registration with the same email, or <button className="underline" onClick={logout}>sign out</button>.</div>}
       <LoginPage
+        initialMode={profileMissing ? "register" : "login"}
         onSuccessApproved={() => navigateTo("home")}
         onNavigatePending={() => navigateTo("pending-approval")}
         onNavigateRejected={() => navigateTo("rejected")}
       />
+      </>
     );
   }
 

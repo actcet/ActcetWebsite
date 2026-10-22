@@ -1,19 +1,20 @@
 import React, { useState } from "react";
 import { X, Calendar, Plus, Sparkles, AlertCircle } from "lucide-react";
+import { portalError } from "@/services/portalService";
 import { useClubData } from "@/context/ClubDataContext";
 
 interface AddEventModalProps {
   isOpen: boolean;
   onClose: () => void;
-  defaultAcademicYear?: string;
+  defaultAcademicYear: string;
 }
 
 export default function AddEventModal({
   isOpen,
   onClose,
-  defaultAcademicYear = "2026-27",
+  defaultAcademicYear,
 }: AddEventModalProps) {
-  const { addEvent, academicYears } = useClubData();
+  const { addEvent, academicYears, settings } = useClubData();
 
   const [eventName, setEventName] = useState("");
   const [academicYear, setAcademicYear] = useState(defaultAcademicYear);
@@ -24,9 +25,11 @@ export default function AddEventModal({
   const [description, setDescription] = useState("");
   const [error, setError] = useState<string | null>(null);
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -56,20 +59,24 @@ export default function AddEventModal({
     }
 
     // Call shared service
-    addEvent({
-      name: cleanName,
-      academicYear: finalYear,
-      date: eventDate,
-      aicteHours: parsedHours,
-      description: description.trim() || undefined,
-    });
+    setIsSubmitting(true);
+    try {
+      await addEvent({
+        name: cleanName,
+        academicYear: finalYear,
+        date: eventDate,
+        aicteHours: parsedHours,
+        description: description.trim() || undefined,
+      });
 
     // Reset & Close
-    setEventName("");
-    setDescription("");
-    setAicteHours("4");
-    setError(null);
-    onClose();
+      setEventName("");
+      setDescription("");
+      setAicteHours("4");
+      setError(null);
+      onClose();
+    } catch (cause) { setError(portalError(cause)); }
+    finally { setIsSubmitting(false); }
   };
 
   return (
@@ -190,7 +197,7 @@ export default function AddEventModal({
                 AICTE Hours <span className="text-rose-400">*</span>
               </label>
               <span className="text-[11px] text-amber-300">
-                {(parseFloat(aicteHours) || 0) / 4} AICTE point(s) earned
+                {settings ? (parseFloat(aicteHours) || 0) / settings.hoursPerAICTEPoint : "—"} AICTE point(s) earned
               </span>
             </div>
             <input
@@ -205,7 +212,7 @@ export default function AddEventModal({
               className="w-full px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/15 text-white placeholder-white/30 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition"
             />
             <p className="text-[11px] text-ink-soft mt-1">
-              Rule: 4 hours = 1.0 point. (e.g. 2 hrs = 0.5 pts, 4 hrs = 1.0 pt, 6 hrs = 1.5 pts)
+              Rule: {settings?.hoursPerAICTEPoint} hours = 1 AICTE point.
             </p>
           </div>
 
@@ -227,6 +234,7 @@ export default function AddEventModal({
           <div className="pt-2">
             <button
               type="submit"
+              disabled={isSubmitting || !settings}
               className="w-full py-3.5 rounded-xl bg-primary hover:bg-primary-dark text-white font-label font-semibold text-sm transition-all duration-300 shadow-[0_8px_24px_-6px_rgba(19,54,212,0.6)] flex items-center justify-center gap-2"
             >
               <Plus size={18} />

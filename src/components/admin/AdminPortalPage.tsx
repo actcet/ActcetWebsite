@@ -19,7 +19,9 @@ import { useClubData } from "@/context/ClubDataContext";
 import { useAuth } from "@/context/AuthContext";
 import { calculateAICTEPoints } from "@/lib/aicte";
 import AddEventModal from "./AddEventModal";
-import type { Member } from "@/types";
+import { ROLES } from "@/services/portalService";
+import PortalDataStatus from "@/components/ui/PortalDataStatus";
+import type { Member, UserRole } from "@/types";
 
 export default function AdminPortalPage() {
   const { currentUser } = useAuth();
@@ -34,11 +36,20 @@ export default function AdminPortalPage() {
     approveUser,
     rejectUser,
     updateAttendance,
-    resetData,
+    settings,
+    isLoading,
+    error,
   } = useClubData();
 
   // Active admin section tab: "approvals" | "member-update"
   const [activeTab, setActiveTab] = useState<"approvals" | "member-update">("approvals");
+
+  const [verifiedRoles, setVerifiedRoles] = useState<Record<string, UserRole>>({});
+  const [busy, setBusy] = useState<Record<string, boolean>>({});
+  const perform = async (key: string, action: () => Promise<unknown>) => {
+    setBusy(previous => ({ ...previous, [key]: true }));
+    try { await action(); } finally { setBusy(previous => ({ ...previous, [key]: false })); }
+  };
 
   // Search filter for Member Update
   const [memberSearchQuery, setMemberSearchQuery] = useState("");
@@ -62,7 +73,7 @@ export default function AdminPortalPage() {
         m.name.toLowerCase().includes(q) ||
         m.email.toLowerCase().includes(q) ||
         m.branch.toLowerCase().includes(q) ||
-        m.role.toLowerCase().includes(q)
+        m.requestedRole.toLowerCase().includes(q)
     );
   }, [pendingMembers, approvalSearchQuery]);
 
@@ -102,13 +113,15 @@ export default function AdminPortalPage() {
     });
   }, [academicYears, filteredApproved, events]);
 
-  const handleConfirmReject = () => {
+  const handleConfirmReject = async () => {
     if (rejectingMember) {
-      rejectUser(rejectingMember.id, rejectionReason || "Administrative review");
+      if (!await rejectUser(rejectingMember.id, rejectionReason || "Administrative review")) return;
       setRejectingMember(null);
       setRejectionReason("");
     }
   };
+
+  if (error || isLoading || !settings) return <PortalDataStatus error={error} />;
 
   return (
     <div className="min-h-screen pt-28 pb-24 px-4 sm:px-6 lg:px-[6vw] bg-[#070d1f] relative overflow-hidden">
@@ -149,14 +162,7 @@ export default function AdminPortalPage() {
               <span>Add Event</span>
             </button>
 
-            <button
-              onClick={resetData}
-              title="Reset mock data to initial demo state"
-              className="px-3.5 py-2.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 text-white/70 hover:text-white text-xs font-label transition flex items-center gap-2"
-            >
-              <RefreshCw size={14} />
-              <span>Reset Demo Data</span>
-            </button>
+
           </div>
         </div>
 
@@ -317,7 +323,7 @@ export default function AdminPortalPage() {
                       <th className="py-4 px-6 min-w-[180px]">Name</th>
                       <th className="py-4 px-4 min-w-[140px]">Year-Branch-Division</th>
                       <th className="py-4 px-4 min-w-[200px]">Email</th>
-                      <th className="py-4 px-4 min-w-[160px]">Role</th>
+                      <th className="py-4 px-4 min-w-[160px]">Requested / Verified Role</th>
                       <th className="py-4 px-4 min-w-[100px]">Status</th>
                       <th className="py-4 px-6 text-right min-w-[180px]">Actions</th>
                     </tr>
@@ -344,9 +350,10 @@ export default function AdminPortalPage() {
 
                         {/* Role */}
                         <td className="py-4 px-4">
-                          <span className="px-2.5 py-1 rounded-md bg-white/[0.05] border border-white/10 text-xs font-medium text-white/90">
-                            {member.role}
-                          </span>
+                          <span className="block text-xs mb-2">Requested: {member.requestedRole}</span>
+                          <select aria-label={`Verified role for ${member.name}`} value={verifiedRoles[member.id] || "Member"} onChange={e => setVerifiedRoles(previous => ({ ...previous, [member.id]: e.target.value as UserRole }))} className="rounded-lg bg-[#0b1530] border border-white/15 px-2 py-1 text-xs">
+                            {ROLES.map(role => <option key={role} value={role}>{role}</option>)}
+                          </select>
                         </td>
 
                         {/* Status */}
@@ -361,7 +368,8 @@ export default function AdminPortalPage() {
                         <td className="py-4 px-6 text-right">
                           <div className="flex items-center justify-end gap-2">
                             <button
-                              onClick={() => approveUser(member.id)}
+                              disabled={busy[member.id]}
+                              onClick={() => perform(member.id, () => approveUser(member.id, verifiedRoles[member.id] || "Member"))}
                               className="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-label font-medium text-xs transition shadow-sm flex items-center gap-1.5"
                             >
                               <CheckCircle2 size={14} />
@@ -500,7 +508,7 @@ export default function AdminPortalPage() {
                         </tr>
                       ) : (
                         yearMembers.map((member) => {
-                          const aicte = calculateAICTEPoints(member.id, yearEvents, attendance);
+                          const aicte = calculateAICTEPoints(member.id, yearEvents, attendance, settings.hoursPerAICTEPoint);
 
                           return (
                             <tr
@@ -547,13 +555,8 @@ export default function AdminPortalPage() {
                                       <input
                                         type="checkbox"
                                         checked={isChecked}
-                                        onChange={(e) =>
-                                          updateAttendance(
-                                            member.id,
-                                            event.id,
-                                            e.target.checked
-                                          )
-                                        }
+                                        disabled={busy[`${member.id}:${event.id}`]}
+                                        onChange={(e) => { const attended = e.target.checked; void perform(`${member.id}:${event.id}`, () => updateAttendance(member.id, event.id, attended)); }}
                                         className="w-4 h-4 rounded border-white/30 text-primary bg-white/10 focus:ring-primary focus:ring-offset-0 transition cursor-pointer accent-primary"
                                         aria-label={`Mark attendance for ${member.name} in ${event.name}`}
                                       />
@@ -649,6 +652,8 @@ export default function AdminPortalPage() {
 
       {/* ADD EVENT MODAL */}
       <AddEventModal
+        key={settings.currentAcademicYear}
+        defaultAcademicYear={settings.currentAcademicYear}
         isOpen={isAddEventOpen}
         onClose={() => setIsAddEventOpen(false)}
       />

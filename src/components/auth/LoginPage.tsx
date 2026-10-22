@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Eye,
   EyeOff,
@@ -9,6 +9,7 @@ import {
   UserPlus,
   LogIn,
 } from "lucide-react";
+import { useClubData } from "@/context/ClubDataContext";
 import { useAuth } from "@/context/AuthContext";
 import type { Branch, Division, StudyYear, UserRole } from "@/types";
 
@@ -46,57 +47,6 @@ const ROLE_OPTIONS: UserRole[] = [
   "Guest",
 ];
 
-const DEMO_PRESETS = [
-  {
-    label: "Chairperson (Admin)",
-    name: "Aarav Sharma",
-    email: "aarav.chairperson@tcetmumbai.in",
-    pass: "Admin@1234",
-    role: "Chairperson",
-    badgeColor: "bg-amber-500/20 text-amber-300 border-amber-500/30",
-  },
-  {
-    label: "Mentor (Admin)",
-    name: "Dr. Rajesh Kumar",
-    email: "rajesh.mentor@tcetmumbai.in",
-    pass: "Admin@1234",
-    role: "Mentor",
-    badgeColor: "bg-amber-500/20 text-amber-300 border-amber-500/30",
-  },
-  {
-    label: "Technical Head",
-    name: "Shinjini Dutta",
-    email: "shinjini.tech@tcetmumbai.in",
-    pass: "Member@1234",
-    role: "Technical Head",
-    badgeColor: "bg-primary/20 text-blue-300 border-primary/30",
-  },
-  {
-    label: "Regular Member",
-    name: "Rohan Gupta",
-    email: "rohan.member@tcetmumbai.in",
-    pass: "Member@1234",
-    role: "Member",
-    badgeColor: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30",
-  },
-  {
-    label: "Pending Account",
-    name: "Vikram Singh",
-    email: "vikram.pending@tcetmumbai.in",
-    pass: "Pending@1234",
-    role: "Pending Member",
-    badgeColor: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
-  },
-  {
-    label: "Rejected Account",
-    name: "Neha Joshi",
-    email: "neha.rejected@tcetmumbai.in",
-    pass: "Rejected@1234",
-    role: "Rejected Guest",
-    badgeColor: "bg-rose-500/20 text-rose-300 border-rose-500/30",
-  },
-];
-
 interface LoginPageProps {
   onSuccessApproved: () => void;
   onNavigatePending: () => void;
@@ -110,7 +60,8 @@ export default function LoginPage({
   onNavigateRejected,
   initialMode = "login",
 }: LoginPageProps) {
-  const { login, register } = useAuth();
+  const { login, register, authUser, profileMissing } = useAuth();
+  const { settings, error: settingsError } = useClubData();
   const [activeTab, setActiveTab] = useState<"login" | "register">(initialMode);
 
   // Login Form State
@@ -126,7 +77,10 @@ export default function LoginPage({
   const [regBranch, setRegBranch] = useState<Branch>("CSE(IoT)");
   const [regDivision, setRegDivision] = useState<Division>("A");
   const [regYear, setRegYear] = useState<StudyYear>("SE");
-  const [regEmail, setRegEmail] = useState("");
+  const [regEmail, setRegEmail] = useState(authUser?.email || "");
+  const [regAcademicYear, setRegAcademicYear] = useState("");
+  useEffect(() => { if (settings) setRegAcademicYear(previous => previous || settings.currentAcademicYear); }, [settings]);
+  useEffect(() => { if (profileMissing) { setActiveTab("register"); setRegEmail(authUser?.email || ""); } }, [profileMissing, authUser?.email]);
   const [regRole, setRegRole] = useState<UserRole>("Member");
   const [regPassword, setRegPassword] = useState("");
   const [showRegPassword, setShowRegPassword] = useState(false);
@@ -183,6 +137,7 @@ export default function LoginPage({
       year: regYear,
       email: regEmail,
       role: regRole,
+      academicYear: regAcademicYear,
       password: regPassword,
     });
     setIsSubmittingReg(false);
@@ -192,13 +147,6 @@ export default function LoginPage({
     } else if (result.error) {
       setRegError(result.error);
     }
-  };
-
-  const handleSelectDemoPreset = (preset: (typeof DEMO_PRESETS)[0]) => {
-    setLoginName(preset.name);
-    setLoginEmail(preset.email);
-    setLoginPassword(preset.pass);
-    setLoginError(null);
   };
 
   return (
@@ -367,34 +315,6 @@ export default function LoginPage({
               </div>
             </form>
 
-            {/* QUICK 1-CLICK DEMO ACCOUNTS */}
-            <div className="mt-6 pt-5 border-t border-white/10">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-label uppercase tracking-wider text-ink-soft flex items-center gap-1.5">
-                  <KeyRound size={13} className="text-primary-light" />
-                  Quick 1-Click Demo Accounts:
-                </span>
-                <span className="text-[11px] text-white/40">Select below</span>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {DEMO_PRESETS.map((preset) => (
-                  <button
-                    key={preset.label}
-                    type="button"
-                    onClick={() => handleSelectDemoPreset(preset)}
-                    className="p-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.09] border border-white/10 hover:border-white/20 text-left transition flex flex-col gap-1 text-xs group"
-                  >
-                    <span className="font-semibold text-white group-hover:text-primary-light transition-colors truncate">
-                      {preset.label}
-                    </span>
-                    <span className="text-[10px] text-ink-soft truncate">
-                      {preset.name}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
         )}
 
@@ -405,7 +325,7 @@ export default function LoginPage({
           <div>
             <div className="mb-5">
               <h2 className="font-display text-xl sm:text-2xl font-bold text-white">
-                First-Time User — Create Account
+                {profileMissing ? "Complete Your Member Profile" : "First-Time User — Create Account"}
               </h2>
               <p className="text-xs text-ink-soft mt-1">
                 Fill in your student details. New accounts require Chairperson/Mentor approval.
@@ -528,7 +448,12 @@ export default function LoginPage({
                 </p>
               </div>
 
-              {/* Field 7: Password */}
+              <div>
+                <label className="block text-xs font-label uppercase tracking-wider text-white/80 mb-1.5" htmlFor="academic-session">Academic Session</label>
+                <input id="academic-session" value={regAcademicYear} onChange={e => setRegAcademicYear(e.target.value)} required pattern="[0-9]{4}-[0-9]{2}" placeholder="2026-27" className="w-full px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/15 text-white text-sm" />
+                {settingsError && <p role="alert" className="text-rose-300 text-xs mt-1">{settingsError}</p>}
+              </div>
+              {/* Password */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="text-xs font-label uppercase tracking-wider text-white/80">
@@ -560,10 +485,10 @@ export default function LoginPage({
               <div className="pt-2 flex flex-col gap-3">
                 <button
                   type="submit"
-                  disabled={isSubmittingReg}
+                  disabled={isSubmittingReg || !settings}
                   className="w-full py-3.5 rounded-xl bg-primary hover:bg-primary-dark disabled:opacity-50 text-white font-label font-semibold text-sm transition-all duration-300 shadow-[0_8px_24px_-6px_rgba(19,54,212,0.6)] flex items-center justify-center gap-2"
                 >
-                  {isSubmittingReg ? "Creating Account..." : "Create Account"}
+                  {isSubmittingReg ? "Submitting..." : profileMissing ? "Submit Profile" : "Create Account"}
                   <ArrowRight size={16} />
                 </button>
 
