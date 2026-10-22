@@ -3,41 +3,38 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     // Assumed model:
-    // members/{authUid}: profile and club-managed fields. Members may edit only
-    // phoneNumber and profilePhotoUrl. Core Team may manage member data but
-    // cannot change the role field or grant privileges.
-    // members/{authUid}/{subcollection}/{document}: private member-related
-    // records such as registrations and attendance. Core Team manages these.
+    // accessControl/{authUid}: role is "admin", "coreTeam", or "eventManager".
+    // Firebase Console/IAM administrators manage these records; all client
+    // reads and writes are denied. Never store the authoritative role on a
+    // member-editable profile.
+    // members/{authUid}: profile and club fields; members may edit only their
+    // own phoneNumber and profilePhotoUrl. Nested club records are private.
     function signedIn() {
       return request.auth != null;
     }
 
-    function isProjectOwner() {
+    function hasAccessRole(role) {
       return signedIn() &&
-        'email' in request.auth.token &&
         'email_verified' in request.auth.token &&
-        'admin' in request.auth.token &&
-        request.auth.token.email == 'actcet@tcetmumbai.in' &&
         request.auth.token.email_verified == true &&
-        request.auth.token.admin == true;
+        exists(/databases/$(database)/documents/accessControl/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/accessControl/$(request.auth.uid)).data.role == role;
+    }
+
+    function isAdmin() {
+      return hasAccessRole('admin');
     }
 
     function isCoreTeam() {
-      return signedIn() &&
-        'email_verified' in request.auth.token &&
-        'coreTeam' in request.auth.token &&
-        request.auth.token.email_verified == true &&
-        request.auth.token.coreTeam == true;
+      return hasAccessRole('coreTeam');
     }
 
     function canManageMembers() {
-      return isProjectOwner() || isCoreTeam();
+      return isAdmin() || isCoreTeam();
     }
 
     function isEventManager() {
-      return signedIn() &&
-        'eventManager' in request.auth.token &&
-        request.auth.token.eventManager == true;
+      return isAdmin() || isCoreTeam() || hasAccessRole('eventManager');
     }
 
     function validMember(data, memberId) {
@@ -153,17 +150,29 @@ service cloud.firestore {
       allow delete: if isEventManager();
     }
 
+    match /accessControl/{userId} {
+      allow read, write: if false;
+    }
+
     match /members/{memberId} {
       allow get, list: if canManageMembers() ||
         (signedIn() && request.auth.uid == memberId &&
           request.auth.token.email_verified == true);
-      allow create: if canManageMembers() &&
-        request.resource.data.role in ['member', 'wc'] &&
-        validMember(request.resource.data, memberId);
+      allow create: if validMember(request.resource.data, memberId) &&
+        (
+          (isAdmin() && request.resource.data.role in ['member', 'core_team', 'wc']) ||
+          (isCoreTeam() && request.resource.data.role in ['member', 'wc'])
+        );
       allow update: if signedIn() &&
         (
-          (canManageMembers() &&
-            request.resource.data.role == resource.data.role &&
+          (isAdmin() &&
+            validMember(request.resource.data, memberId)) ||
+          (isCoreTeam() &&
+            (
+              request.resource.data.role == resource.data.role ||
+              (resource.data.role != 'core_team' &&
+                request.resource.data.role in ['member', 'wc'])
+            ) &&
             validMember(request.resource.data, memberId)) ||
           (request.auth.uid == memberId &&
             request.auth.token.email_verified == true &&

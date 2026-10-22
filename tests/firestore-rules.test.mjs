@@ -50,6 +50,9 @@ beforeEach(async () => {
   await testEnv.clearFirestore();
   await testEnv.withSecurityRulesDisabled(async (context) => {
     const db = context.firestore();
+    await setDoc(doc(db, "accessControl/core-uid"), { role: "coreTeam" });
+    await setDoc(doc(db, "accessControl/owner-uid"), { role: "admin" });
+    await setDoc(doc(db, "accessControl/event-manager"), { role: "eventManager" });
     await setDoc(doc(db, "members/member-a"), memberProfile("member-a"));
     await setDoc(doc(db, "members/member-b"), memberProfile("member-b"));
     await setDoc(
@@ -159,18 +162,23 @@ test("members cannot create or delete profiles or write registrations", async ()
   }));
 });
 
-test("Core Team claims can manage member records and club subcollections", async () => {
+test("console-assigned Core Team roles can manage member records and club subcollections", async () => {
   const db = testEnv
     .authenticatedContext("core-uid", {
       email: "core@tcetmumbai.in",
       email_verified: true,
-      coreTeam: true,
     })
     .firestore();
   const target = doc(db, "members/member-b");
 
   await assertSucceeds(getDoc(target));
   await assertSucceeds(getDocs(collection(db, "members")));
+  await assertSucceeds(
+    setDoc(
+      doc(db, "members/new-member"),
+      memberProfile("new-member", "wc"),
+    ),
+  );
   await assertSucceeds(
     updateDoc(target, {
       fullName: "Updated by Core Team",
@@ -204,12 +212,11 @@ test("Core Team claims can manage member records and club subcollections", async
   await assertSucceeds(deleteDoc(target));
 });
 
-test("Core Team cannot assign or change a member role", async () => {
+test("Core Team cannot assign or change member roles", async () => {
   const db = testEnv
     .authenticatedContext("core-uid", {
       email: "core@tcetmumbai.in",
       email_verified: true,
-      coreTeam: true,
     })
     .firestore();
   const existingProfile = await getDoc(doc(db, "members/member-b"));
@@ -224,6 +231,18 @@ test("Core Team cannot assign or change a member role", async () => {
       updatedAt: serverTimestamp(),
     }),
   );
+  await assertSucceeds(
+    updateDoc(doc(db, "members/member-b"), {
+      role: "wc",
+      updatedAt: serverTimestamp(),
+    }),
+  );
+  await assertFails(
+    updateDoc(doc(db, "members/member-b"), {
+      role: "core_team",
+      updatedAt: serverTimestamp(),
+    }),
+  );
   assert.equal(existingProfile.data().role, "member");
 });
 
@@ -232,6 +251,7 @@ test("a core_team profile field without a trusted claim grants no access", async
     .authenticatedContext("member-candidate", {
       email: "member-candidate@tcetmumbai.in",
       email_verified: true,
+      coreTeam: true,
     })
     .firestore();
 
@@ -253,19 +273,17 @@ test("unverified and unauthenticated users cannot read member data", async () =>
   await assertFails(getDoc(doc(anonymousDb, "members/member-a")));
 });
 
-test("only the owner with the admin claim can read all member records", async () => {
+test("only a console-assigned admin can read all member records", async () => {
   const ownerDb = testEnv
     .authenticatedContext("owner-uid", {
       email: ownerEmail,
       email_verified: true,
-      admin: true,
     })
     .firestore();
   const otherAdminDb = testEnv
     .authenticatedContext("other-admin", {
       email: "someone-else@example.com",
       email_verified: true,
-      admin: true,
     })
     .firestore();
 
@@ -273,7 +291,60 @@ test("only the owner with the admin claim can read all member records", async ()
   await assertSucceeds(getDocs(collection(ownerDb, "members")));
   await assertSucceeds(getDoc(doc(ownerDb, "members/member-a/registrations/reg-1")));
   await assertFails(getDoc(doc(otherAdminDb, "members/member-a")));
-  await assertFails(updateDoc(doc(ownerDb, "members/member-a"), { role: "wc" }));
+  await assertSucceeds(
+    updateDoc(doc(ownerDb, "members/member-a"), {
+      role: "wc",
+      updatedAt: serverTimestamp(),
+    }),
+  );
+});
+
+test("an admin can assign Core Team member roles but cannot edit access-control docs from the client", async () => {
+  const adminDb = testEnv
+    .authenticatedContext("owner-uid", {
+      email: ownerEmail,
+      email_verified: true,
+    })
+    .firestore();
+
+  await assertSucceeds(
+    updateDoc(doc(adminDb, "members/member-b"), {
+      role: "core_team",
+      updatedAt: serverTimestamp(),
+    }),
+  );
+  await assertFails(setDoc(doc(adminDb, "accessControl/member-b"), { role: "coreTeam" }));
+  await assertFails(updateDoc(doc(adminDb, "accessControl/core-uid"), { role: "admin" }));
+  await assertFails(getDoc(doc(adminDb, "accessControl/core-uid")));
+});
+
+test("an Auth admin claim without a console-managed access record grants no privileges", async () => {
+  const db = testEnv
+    .authenticatedContext("unassigned-admin", {
+      email: ownerEmail,
+      email_verified: true,
+      admin: true,
+    })
+    .firestore();
+
+  await assertFails(getDocs(collection(db, "members")));
+  await assertFails(updateDoc(doc(db, "members/member-a"), {
+    role: "core_team",
+    updatedAt: serverTimestamp(),
+  }));
+});
+
+test("an eventManager access record grants only the existing event permissions", async () => {
+  const db = testEnv
+    .authenticatedContext("event-manager", {
+      email: "events@tcetmumbai.in",
+      email_verified: true,
+    })
+    .firestore();
+
+  await assertSucceeds(getDoc(doc(db, "events/draft")));
+  await assertFails(getDoc(doc(db, "members/member-a")));
+  await assertFails(getDocs(collection(db, "members")));
 });
 
 test("public visitors can read published events but not drafts", async () => {
