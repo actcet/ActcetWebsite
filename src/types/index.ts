@@ -89,3 +89,5 @@ export interface ContactItem {
   value: string;
   href?: string;
 }
+
+export * from "./club";
