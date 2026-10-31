@@ -2,7 +2,8 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     // users/{Auth UID}: application profile and live, owner/admin-verified authority.
-    // events/{auto ID}: portal events; attendance/{UID}__{event ID}: unique pair.
+    // events/{auto ID}: portal events; attendance/{UID}__{event ID}: legacy unique pair.
+    // memberEventPoints/{UID}__{event ID}__{session}: normalized AICTE allocations.
     // settings/club: non-sensitive academic session and AICTE conversion settings.
     // Bootstrap: trusted project owner provisions one verified Auth UID via IAM.
     // No client can create an approved profile or modify its own authorization.
@@ -38,11 +39,34 @@ service cloud.firestore {
     }
     function validEvent(d) {
       return d.keys().hasAll(['name', 'academicYear', 'date', 'aicteHours', 'description', 'createdAt', 'createdBy']) &&
-        d.keys().hasOnly(['name', 'academicYear', 'date', 'aicteHours', 'description', 'createdAt', 'createdBy']) &&
+        d.keys().hasOnly(['name', 'academicYear', 'date', 'aicteHours', 'description', 'status', 'archived', 'catalogId', 'createdAt', 'createdBy', 'updatedAt', 'updatedBy']) &&
         text(d.name, 160) && session(d.academicYear) && d.date is timestamp &&
         d.aicteHours is number && d.aicteHours > 0 && d.aicteHours <= 10000 &&
         d.description is string && d.description.size() <= 4000 &&
-        d.createdAt is timestamp && text(d.createdBy, 128);
+        (!('status' in d) || d.status in ['completed', 'upcoming', 'archived']) &&
+        (!('archived' in d) || d.archived is bool) &&
+        (!('catalogId' in d) || text(d.catalogId, 128)) &&
+        d.createdAt is timestamp && text(d.createdBy, 128) &&
+        (!('updatedAt' in d) || d.updatedAt is timestamp) &&
+        (!('updatedBy' in d) || text(d.updatedBy, 128));
+    }
+    function validAllocation(allocationId, d) {
+      return d.keys().hasAll(['memberId', 'eventId', 'eventName', 'eventDate', 'academicYear', 'allocationMethod', 'hours', 'aictePoints', 'createdAt', 'updatedAt', 'createdBy', 'updatedBy']) &&
+        d.keys().hasOnly(['memberId', 'eventId', 'eventName', 'eventDate', 'academicYear', 'allocationMethod', 'hours', 'aictePoints', 'createdAt', 'updatedAt', 'createdBy', 'updatedBy']) &&
+        text(d.memberId, 128) && d.eventId is string && d.eventId.matches('^[A-Za-z0-9_-]{1,128}$') &&
+        text(d.eventName, 160) && d.eventDate is string && d.eventDate.size() <= 40 &&
+        session(d.academicYear) &&
+        allocationId == d.memberId + '__' + d.eventId + '__' + d.academicYear &&
+        d.allocationMethod in ['hours', 'direct'] &&
+        ((d.allocationMethod == 'hours' && d.hours is number && d.hours >= 0 && d.hours <= 10000) ||
+         (d.allocationMethod == 'direct' && d.hours == null)) &&
+        d.aictePoints is number && d.aictePoints >= 0 && d.aictePoints <= 2500 &&
+        d.createdAt is timestamp && d.updatedAt is timestamp &&
+        text(d.createdBy, 128) && text(d.updatedBy, 128) &&
+        exists(/databases/$(database)/documents/users/$(d.memberId)) &&
+        get(/databases/$(database)/documents/users/$(d.memberId)).data.approvalStatus == 'approved' &&
+        (!('accountType' in get(/databases/$(database)/documents/users/$(d.memberId)).data) ||
+          get(/databases/$(database)/documents/users/$(d.memberId)).data.accountType != 'club_admin');
     }
     match /users/{uid} {
       allow get: if isOwner(uid) || admin() || (approved() && resource.data.approvalStatus == 'approved');
@@ -66,8 +90,9 @@ service cloud.firestore {
       allow read: if approved();
       allow create: if admin() && eventId.matches('^[A-Za-z0-9]{20}$') && validEvent(request.resource.data) &&
         request.resource.data.createdAt == request.time && request.resource.data.createdBy == request.auth.uid;
-      allow update: if admin() && validEvent(request.resource.data) &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'date', 'aicteHours', 'description']);
+      allow update: if admin() && eventId != '_metadata' && validEvent(request.resource.data) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'date', 'aicteHours', 'description', 'status', 'archived', 'updatedAt', 'updatedBy']) &&
+        (!('updatedBy' in request.resource.data) || request.resource.data.updatedBy == request.auth.uid);
       allow delete: if false;
     }
     match /attendance/{pairId} {
@@ -88,6 +113,18 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.resource.data.memberId)).data.academicYear ==
           get(/databases/$(database)/documents/events/$(request.resource.data.eventId)).data.academicYear;
       allow delete: if false;
+    }
+    match /memberEventPoints/{allocationId} {
+      allow read: if approved();
+      allow create: if admin() && validAllocation(allocationId, request.resource.data) &&
+        request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time &&
+        request.resource.data.createdBy == request.auth.uid && request.resource.data.updatedBy == request.auth.uid;
+      allow update: if admin() && validAllocation(allocationId, request.resource.data) &&
+        request.resource.data.createdAt == resource.data.createdAt &&
+        request.resource.data.createdBy == resource.data.createdBy &&
+        request.resource.data.updatedAt == request.time &&
+        request.resource.data.updatedBy == request.auth.uid;
+      allow delete: if admin() && allocationId != '_metadata';
     }
     match /settings/{id} {
       // Needed to populate the registration form before a visitor has an account.

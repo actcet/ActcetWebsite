@@ -31,6 +31,8 @@ export interface EventItem {
   participants: string;
   objective: string;
   outcome: string;
+  description?: string;
+  academicYear?: string;
   image: string;
   gallery: string[];
 }

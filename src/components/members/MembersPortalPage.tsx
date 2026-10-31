@@ -1,63 +1,98 @@
-import React, { useState, useMemo } from "react";
-import { Search, X, Check, Minus, Award, Calendar, Sparkles, Compass, Users } from "lucide-react";
+import { useState, useMemo } from "react";
+import {
+  Search,
+  X,
+  Award,
+  Calendar,
+  Sparkles,
+  History,
+  Shield,
+  CheckCircle2,
+  Clock,
+  User,
+  Mail,
+  GraduationCap,
+  BellRing,
+  ArrowRight,
+} from "lucide-react";
 import PortalDataStatus from "@/components/ui/PortalDataStatus";
+import CalendarDatePicker from "@/components/ui/CalendarDatePicker";
+import { playSweetAlertChime } from "@/components/ui/UpcomingEventSweetAlert";
 import { useClubData } from "@/context/ClubDataContext";
-import { calculateAICTEPoints } from "@/lib/aicte";
-import type { Member, ClubEvent } from "@/types";
+import { useAuth } from "@/context/AuthContext";
+import { useAppRouter } from "@/hooks/useAppRouter";
+import {
+  calculateMemberAllocationSummary,
+  formatCleanNumber,
+  formatEventDateDisplay,
+  parseFlexibleDateToISO,
+} from "@/lib/aicte";
+
+function toIsoKey(rawDate?: string): string | null {
+  if (!rawDate) return null;
+  const iso = parseFlexibleDateToISO(rawDate);
+  return iso || null;
+}
 
 export default function MembersPortalPage() {
-  const { approvedMembers, events, attendance, academicYears, settings, isLoading, error } = useClubData();
-  const [searchQuery, setSearchQuery] = useState("");
+  const { currentUser } = useAuth();
+  const { navigateTo } = useAppRouter();
+  const {
+    approvedMembers,
+    allocations,
+    upcomingEvents,
+    settings,
+    isLoading,
+    error,
+  } = useClubData();
 
-  // Normalized, field-aware filter for members
-  const filteredMembers = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return approvedMembers;
+  const [historySearchQuery, setHistorySearchQuery] = useState("");
+  const [historyDateFilter, setHistoryDateFilter] = useState("");
+  const [historyYearFilter, setHistoryYearFilter] = useState<string>("all");
 
-    return approvedMembers.filter((member) => {
-      // 1. Year match: normalized field comparison
-      // If user specifically types 'se', 'te', or 'be', match study year only
-      // so short year values do not accidentally match unrelated text
-      const isSpecificYearQuery = q === "se" || q === "te" || q === "be";
-      if (isSpecificYearQuery) {
-        return (member.year || "").toLowerCase() === q;
+  // Logged-in individual account profile
+  const myProfile = useMemo(() => {
+    if (!currentUser) return null;
+    return approvedMembers.find((m) => m.id === currentUser.id) || currentUser;
+  }, [currentUser, approvedMembers]);
+
+  // Individual member's AICTE summary & event history
+  const mySummary = useMemo(
+    () =>
+      myProfile
+        ? calculateMemberAllocationSummary(myProfile.id, allocations)
+        : null,
+    [myProfile, allocations]
+  );
+
+  // Distinct academic years in the member's own event history
+  const myHistoryAcademicYears = useMemo(() => {
+    if (!mySummary) return [];
+    return Array.from(new Set(mySummary.history.map((item) => item.academicYear)))
+      .filter(Boolean)
+      .sort()
+      .reverse();
+  }, [mySummary]);
+
+  // Filtered event history for the logged-in member
+  const filteredMyHistory = useMemo(() => {
+    if (!mySummary) return [];
+    const q = historySearchQuery.trim().toLowerCase();
+    return mySummary.history.filter((item) => {
+      if (historyYearFilter !== "all" && item.academicYear !== historyYearFilter) {
+        return false;
       }
-
-      // 2. Name match (case-insensitive substring)
-      if (member.name.toLowerCase().includes(q)) return true;
-
-      // 3. Branch match (exact or substring, e.g. "aiml", "cse", "cse(iot)")
-      if ((member.branch || "").toLowerCase().includes(q)) return true;
-
-      // 4. Year substring match (if query is longer/part of class)
-      if ((member.year || "").toLowerCase().includes(q)) return true;
-
-      // 5. Combined Class format e.g. "SE-CSE(IoT)-A"
-      const classPattern = `${member.year || ""}-${member.branch || ""}-${member.division || ""}`.toLowerCase();
-      if (classPattern.includes(q)) return true;
-
-      // 6. Role match
-      if (member.role.toLowerCase().includes(q)) return true;
-
-      return false;
+      if (historyDateFilter && toIsoKey(item.eventDate) !== historyDateFilter) {
+        return false;
+      }
+      if (!q) return true;
+      return (
+        item.eventName.toLowerCase().includes(q) ||
+        item.academicYear.toLowerCase().includes(q) ||
+        formatEventDateDisplay(item.eventDate).toLowerCase().includes(q)
+      );
     });
-  }, [approvedMembers, searchQuery]);
-
-  // Group filtered members by academic year
-  const groupedData = useMemo(() => {
-    return academicYears.map((academicYear) => {
-      const yearMembers = filteredMembers.filter((m) => m.academicYear === academicYear);
-      const yearEvents = events.filter((e) => e.academicYear === academicYear);
-      return {
-        academicYear,
-        members: yearMembers,
-        events: yearEvents,
-      };
-    });
-  }, [academicYears, filteredMembers, events]);
-
-  const hasAnyMembers = approvedMembers.length > 0;
-  const hasSearchResults = groupedData.some((g) => g.members.length > 0);
+  }, [mySummary, historySearchQuery, historyDateFilter, historyYearFilter]);
 
   if (error || isLoading || !settings) return <PortalDataStatus error={error} />;
 
@@ -69,294 +104,368 @@ export default function MembersPortalPage() {
       <div className="absolute inset-0 bg-stars opacity-40 pointer-events-none -z-10" />
 
       {/* ======================================================== */}
-      {/* 3B. HERO / HEADER SECTION */}
+      {/* HERO / HEADER SECTION */}
       {/* ======================================================== */}
       <div className="max-w-5xl mx-auto text-center mb-10">
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/[0.06] border border-white/10 backdrop-blur-md mb-4 text-xs font-label uppercase tracking-widest text-mint-bright">
           <Sparkles size={14} className="text-primary-light" />
-          <span>ACTCET TCET Chapter</span>
+          <span>ACTCET TCET Chapter • Individual Member Account</span>
         </div>
 
-        {/* Page Title */}
         <h1 className="font-display text-3xl sm:text-4xl md:text-5xl font-extrabold text-white tracking-tight mb-3">
-          Astronomy Members' Portal
+          Astronomy Member&apos;s Portal
         </h1>
 
-        {/* Caption — EXACT TEXT in italics directly below title */}
         <p className="italic text-base sm:text-lg text-ink-soft max-w-2xl mx-auto leading-relaxed font-body">
-          "Every astronomer starts with wonder. Every member here keeps that wonder alive."
+          &ldquo;Every astronomer starts with wonder. Every member here keeps that wonder alive.&rdquo;
         </p>
       </div>
 
       {/* ======================================================== */}
-      {/* 3C. SEARCH BAR */}
+      {/* INDIVIDUAL MEMBER ACCOUNT DASHBOARD (READ-ONLY) */}
       {/* ======================================================== */}
-      <div className="max-w-2xl mx-auto mb-12">
-        <div className="relative group">
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-white/40 group-focus-within:text-primary-light transition-colors">
-            <Search size={20} />
-          </div>
-
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by name, branch, or year..."
-            className="w-full pl-12 pr-12 py-3.5 rounded-2xl bg-white/[0.05] border border-white/15 text-white placeholder-white/35 text-sm sm:text-base backdrop-blur-xl focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 shadow-lg transition-all"
-          />
-
-          {searchQuery && (
+      {myProfile && mySummary ? (
+        <div className="max-w-5xl mx-auto space-y-8">
+          {/* Interactive Upcoming Event Banner (if Admin added Future Events) */}
+          {upcomingEvents.length > 0 && (
             <button
-              onClick={() => setSearchQuery("")}
-              className="absolute inset-y-0 right-0 pr-4 flex items-center text-white/50 hover:text-white transition-colors"
-              aria-label="Clear search"
+              type="button"
+              onClick={() => {
+                playSweetAlertChime();
+                navigateTo("home", "future");
+              }}
+              className="w-full text-left p-5 rounded-3xl border border-amber-400/40 bg-gradient-to-r from-amber-500/15 via-[#171631]/90 to-primary/20 hover:border-amber-400/70 backdrop-blur-2xl shadow-[0_14px_40px_rgba(0,0,0,0.4)] transition group flex flex-col sm:flex-row sm:items-center justify-between gap-4"
             >
-              <X size={18} />
-            </button>
-          )}
-        </div>
-
-        {searchQuery && (
-          <div className="flex items-center justify-between text-xs text-ink-soft px-3 pt-2">
-            <span>
-              Searching for: <strong className="text-white">"{searchQuery}"</strong>
-            </span>
-            <span>
-              {filteredMembers.length} matching member{filteredMembers.length === 1 ? "" : "s"}
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* ======================================================== */}
-      {/* 3D. ACADEMIC YEAR-WISE MEMBER TABLES */}
-      {/* ======================================================== */}
-      <div className="max-w-7xl mx-auto space-y-12">
-        {!hasAnyMembers ? (
-          <div className="text-center py-20 p-8 rounded-3xl border border-white/10 bg-white/[0.02] backdrop-blur-xl">
-            <Users className="w-16 h-16 text-white/30 mx-auto mb-4" />
-            <h3 className="font-display text-xl font-bold text-white mb-2">
-              No Member Records Available
-            </h3>
-            <p className="text-sm text-ink-soft max-w-md mx-auto">
-              There are currently no approved club members registered in the system.
-            </p>
-          </div>
-        ) : !hasSearchResults ? (
-          <div className="text-center py-16 p-8 rounded-3xl border border-white/10 bg-white/[0.02] backdrop-blur-xl">
-            <Compass className="w-14 h-14 text-primary-light/40 mx-auto mb-4" />
-            <h3 className="font-display text-xl font-bold text-white mb-2">
-              No members found
-            </h3>
-            <p className="text-sm text-ink-soft max-w-md mx-auto mb-6">
-              No registered members match your search criteria "{searchQuery}". Try searching by a different name, branch, or year.
-            </p>
-            <button
-              onClick={() => setSearchQuery("")}
-              className="px-5 py-2.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.15] border border-white/15 text-white font-label text-xs uppercase tracking-wider transition"
-            >
-              Clear Search Filter
-            </button>
-          </div>
-        ) : (
-          groupedData.map(({ academicYear, members: yearMembers, events: yearEvents }) => {
-            if (yearMembers.length === 0 && searchQuery) {
-              return null; // hide section if search yielded no members in this year
-            }
-
-            return (
-              <div
-                key={academicYear}
-                className="rounded-3xl border border-white/15 bg-[#0b1530]/75 backdrop-blur-2xl shadow-[0_20px_60px_rgba(0,0,0,0.4)] overflow-hidden"
-              >
-                {/* SECTION HEADER */}
-                <div className="px-6 sm:px-8 py-5 border-b border-white/10 flex flex-wrap items-center justify-between gap-4 bg-gradient-to-r from-primary/10 via-transparent to-transparent">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-primary/20 border border-primary/40 flex items-center justify-center text-primary-light">
-                      <Calendar size={18} />
-                    </div>
-                    <div>
-                      <h2 className="font-display text-xl sm:text-2xl font-bold text-white tracking-tight">
-                        Academic Year {academicYear}
-                      </h2>
-                      <p className="text-xs text-ink-soft">
-                        Official participation registry & AICTE point status
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <span className="px-3 py-1 rounded-full text-xs font-label bg-white/[0.06] border border-white/10 text-ink-soft">
-                      {yearMembers.length} Active Member{yearMembers.length === 1 ? "" : "s"}
-                    </span>
-                    <span className="px-3 py-1 rounded-full text-xs font-label bg-primary/20 border border-primary/30 text-primary-light">
-                      {yearEvents.length} Event{yearEvents.length === 1 ? "" : "s"}
-                    </span>
-                  </div>
+              <div className="flex items-start sm:items-center gap-3.5">
+                <div className="w-11 h-11 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center shrink-0 shadow-[0_0_20px_rgba(245,158,11,0.5)]">
+                  <BellRing size={20} className="animate-bounce" />
                 </div>
-
-                {/* TABLE CONTAINER — HORIZONTALLY SCROLLABLE WITH STICKY NAME */}
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse text-sm">
-                    <thead>
-                      <tr className="border-b border-white/10 bg-white/[0.03] text-[11px] font-label uppercase tracking-wider text-ink-soft">
-                        <th className="py-4 px-5 sticky left-0 z-20 bg-[#0b1530] min-w-[180px] shadow-[2px_0_8px_rgba(0,0,0,0.3)]">
-                          Name
-                        </th>
-                        <th className="py-4 px-4 min-w-[140px]">Year-Branch-Div</th>
-                        <th className="py-4 px-4 min-w-[200px]">Email</th>
-                        <th className="py-4 px-4 min-w-[150px]">Role</th>
-
-                        {/* DYNAMIC EVENT COLUMNS */}
-                        {yearEvents.map((event) => (
-                          <th
-                            key={event.id}
-                            className="py-4 px-4 min-w-[150px] text-center"
-                            title={`${event.name} (${event.aicteHours} hrs on ${event.date})`}
-                          >
-                            <div className="flex flex-col items-center">
-                              <span className="text-white normal-case font-semibold text-xs truncate max-w-[140px]">
-                                {event.name}
-                              </span>
-                              <span className="text-[10px] text-primary-light tracking-normal lowercase">
-                                {event.aicteHours} hrs
-                              </span>
-                            </div>
-                          </th>
-                        ))}
-
-                        {/* TOTAL AICTE COLUMN */}
-                        <th className="py-4 px-5 text-right min-w-[120px] bg-primary/10">
-                          <div className="flex items-center justify-end gap-1.5 text-white">
-                            <Award size={14} className="text-amber-400" />
-                            <span>Total AICTE</span>
-                          </div>
-                        </th>
-                      </tr>
-                    </thead>
-
-                    <tbody className="divide-y divide-white/5">
-                      {yearMembers.length === 0 ? (
-                        <tr>
-                          <td
-                            colSpan={5 + yearEvents.length}
-                            className="py-8 text-center text-xs text-ink-soft italic"
-                          >
-                            No members found in academic year {academicYear}.
-                          </td>
-                        </tr>
-                      ) : (
-                        yearMembers.map((member) => {
-                          const aicte = calculateAICTEPoints(member.id, yearEvents, attendance, settings.hoursPerAICTEPoint);
-
-                          return (
-                            <tr
-                              key={member.id}
-                              className="hover:bg-white/[0.03] transition-colors group"
-                            >
-                              {/* Name (Sticky on desktop) */}
-                              <td className="py-4 px-5 sticky left-0 z-10 bg-[#0b1530] group-hover:bg-[#0e1b3d] shadow-[2px_0_8px_rgba(0,0,0,0.3)] transition-colors">
-                                <div className="font-semibold text-white group-hover:text-primary-light transition-colors">
-                                  {member.name}
-                                </div>
-                              </td>
-
-                              {/* Year-Branch-Division (e.g. SE-CSE(IoT)-A) */}
-                              <td className="py-4 px-4">
-                                <span className="inline-block px-2.5 py-1 rounded-lg bg-white/[0.06] border border-white/10 font-mono text-xs text-ink-soft">
-                                  {member.year || "—"}-{member.branch || "—"}-{member.division || "—"}
-                                </span>
-                              </td>
-
-                              {/* Email */}
-                              <td className="py-4 px-4 text-ink-soft text-xs font-mono truncate max-w-[200px]">
-                                {member.email}
-                              </td>
-
-                              {/* Role */}
-                              <td className="py-4 px-4">
-                                <span
-                                  className={`inline-block px-2.5 py-1 rounded-md text-xs font-medium ${
-                                    member.role === "Chairperson" || member.role === "Mentor"
-                                      ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
-                                      : member.role.includes("Head")
-                                      ? "bg-primary/20 text-blue-300 border border-primary/30"
-                                      : member.role.includes("Working Committee")
-                                      ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
-                                      : "bg-white/[0.05] text-white/80 border border-white/10"
-                                  }`}
-                                >
-                                  {member.role}
-                                </span>
-                              </td>
-
-                              {/* Dynamic Event Attendance Columns (Read-only) */}
-                              {yearEvents.map((event) => {
-                                const isAttended = attendance.some(
-                                  (a) =>
-                                    a.memberId === member.id &&
-                                    a.eventId === event.id &&
-                                    a.attended
-                                );
-
-                                return (
-                                  <td
-                                    key={event.id}
-                                    className="py-4 px-4 text-center"
-                                  >
-                                    {isAttended ? (
-                                      <span
-                                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-medium"
-                                        title={`Attended (${event.aicteHours} hrs earned)`}
-                                      >
-                                        <Check size={12} className="stroke-[3]" />
-                                        <span>Attended</span>
-                                      </span>
-                                    ) : (
-                                      <span
-                                        className="text-white/30 text-sm"
-                                        title="Not attended (0 hrs)"
-                                      >
-                                        —
-                                      </span>
-                                    )}
-                                  </td>
-                                );
-                              })}
-
-                              {/* Total AICTE Points */}
-                              <td className="py-4 px-5 text-right font-mono font-bold text-sm bg-primary/5 group-hover:bg-primary/10 transition-colors">
-                                <span
-                                  className={
-                                    aicte.points > 0
-                                      ? "text-amber-300 drop-shadow-[0_0_8px_rgba(251,191,36,0.3)]"
-                                      : "text-white/40"
-                                  }
-                                >
-                                  {aicte.formattedPoints}
-                                </span>
-                                <span className="text-[10px] text-white/40 font-normal ml-1">
-                                  pts
-                                </span>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* FOOTER SUMMARY */}
-                <div className="px-6 py-3 border-t border-white/10 bg-white/[0.02] flex items-center justify-between text-xs text-ink-soft">
-                  <span>AICTE Formula: {settings.hoursPerAICTEPoint} hours of attended events = 1 AICTE point</span>
-                  <span>Auto-calculated in real time</span>
+                <div>
+                  <span className="text-[11px] font-label font-bold uppercase tracking-wider text-amber-300 block">
+                    {upcomingEvents.length > 1
+                      ? `${upcomingEvents.length} Upcoming Missions Announced by Admin`
+                      : "New Upcoming Mission Announced by Admin"}
+                  </span>
+                  <h3 className="font-display text-base sm:text-lg font-bold text-white group-hover:text-amber-200 transition-colors">
+                    {upcomingEvents[0].title} — {upcomingEvents[0].date} (
+                    {upcomingEvents[0].location})
+                  </h3>
                 </div>
               </div>
-            );
-          })
-        )}
-      </div>
+
+              <span className="px-4 py-2.5 rounded-xl bg-amber-500 group-hover:bg-amber-400 text-slate-950 font-label font-extrabold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shrink-0 transition">
+                <span>Open Future Events</span>
+                <ArrowRight size={14} />
+              </span>
+            </button>
+          )}
+
+          {/* 1. Personal Profile & Total AICTE Points Card */}
+          <section
+            aria-label="Your Personal Account and AICTE Summary"
+            className="rounded-3xl border border-primary/30 bg-gradient-to-br from-[#0b1530]/95 via-[#0e1b3d]/90 to-[#0b1530]/95 backdrop-blur-2xl shadow-[0_20px_60px_rgba(0,0,0,0.45)] p-6 sm:p-8"
+          >
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-white/10">
+              <div className="flex items-start gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-primary/25 border border-primary/40 flex items-center justify-center text-white font-display font-bold text-xl shrink-0">
+                  {myProfile.name
+                    .split(" ")
+                    .map((n) => n[0])
+                    .join("")
+                    .slice(0, 2)
+                    .toUpperCase()}
+                </div>
+
+                <div>
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.06] border border-white/10 text-[11px] font-label uppercase tracking-wider text-ink-soft mb-2">
+                    <Shield size={12} className="text-primary-light" />
+                    <span>Personal AICTE Activity Account (Read-Only)</span>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <h2 className="font-display text-2xl sm:text-3xl font-bold text-white">
+                      {myProfile.name}
+                    </h2>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      <CheckCircle2 size={12} />
+                      <span>Approved {myProfile.role}</span>
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-ink-soft mt-2">
+                    <span className="inline-flex items-center gap-1.5">
+                      <Mail size={13} className="text-primary-light" />
+                      <span>{myProfile.email}</span>
+                    </span>
+                    {myProfile.accountType !== "club_admin" && (
+                      <span className="inline-flex items-center gap-1.5 font-mono">
+                        <GraduationCap size={14} className="text-emerald-400" />
+                        <span>
+                          {myProfile.year || "—"}-{myProfile.branch || "—"}-
+                          {myProfile.division || "—"} • Session{" "}
+                          {myProfile.academicYear || settings.currentAcademicYear}
+                        </span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Total AICTE Badge */}
+              <div className="px-6 py-4 rounded-2xl bg-amber-500/15 border border-amber-500/35 text-left lg:text-right shrink-0">
+                <span className="text-[11px] font-label uppercase tracking-wider text-amber-200 block">
+                  Your Total AICTE Points
+                </span>
+                <div className="flex items-baseline lg:justify-end gap-1.5 mt-0.5">
+                  <span className="font-mono text-3xl sm:text-4xl font-extrabold text-amber-300">
+                    {mySummary.formattedPoints}
+                  </span>
+                  <span className="text-sm text-amber-200/80 font-semibold">pts</span>
+                </div>
+                <span className="text-xs text-ink-soft block mt-0.5">
+                  {mySummary.formattedHours} hrs credited across {mySummary.count} event
+                  {mySummary.count === 1 ? "" : "s"}
+                </span>
+              </div>
+            </div>
+
+            {/* Individual Account Quick Stats Row */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-6">
+              <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-300">
+                  <Award size={18} />
+                </div>
+                <div>
+                  <span className="text-[11px] font-label uppercase tracking-wider text-ink-soft block">
+                    Total AICTE Points Earned
+                  </span>
+                  <span className="font-mono text-lg font-bold text-white">
+                    {mySummary.formattedPoints} Points
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center text-primary-light">
+                  <Clock size={18} />
+                </div>
+                <div>
+                  <span className="text-[11px] font-label uppercase tracking-wider text-ink-soft block">
+                    Total Credited Hours
+                  </span>
+                  <span className="font-mono text-lg font-bold text-white">
+                    {mySummary.formattedHours} Hours
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-300">
+                  <Calendar size={18} />
+                </div>
+                <div>
+                  <span className="text-[11px] font-label uppercase tracking-wider text-ink-soft block">
+                    Completed Club Events
+                  </span>
+                  <span className="font-mono text-lg font-bold text-white">
+                    {mySummary.count} Event{mySummary.count === 1 ? "" : "s"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* 2. Individual Event-Wise AICTE Point History Section */}
+          <section
+            aria-label="Your Event-Wise AICTE Point History"
+            className="rounded-3xl border border-white/15 bg-[#0b1530]/85 backdrop-blur-2xl shadow-[0_20px_60px_rgba(0,0,0,0.4)] p-6 sm:p-8 space-y-5"
+          >
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-white/10">
+              <div>
+                <h3 className="font-display text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+                  <History size={18} className="text-primary-light" />
+                  <span>Your Event-Wise AICTE Point History</span>
+                </h3>
+                <p className="text-xs text-ink-soft mt-1">
+                  Official record of club events you participated in and the AICTE points allotted to your account.
+                </p>
+              </div>
+
+              {mySummary.history.length > 0 && (
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                  {/* Search own events */}
+                  <div className="relative w-full sm:w-64">
+                    <Search
+                      size={15}
+                      className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none"
+                    />
+                    <input
+                      type="text"
+                      value={historySearchQuery}
+                      onChange={(e) => setHistorySearchQuery(e.target.value)}
+                      placeholder="Search your events..."
+                      aria-label="Search your event history"
+                      className="w-full pl-9 pr-8 py-2.5 rounded-xl bg-white/[0.06] border border-white/15 text-white text-xs sm:text-sm placeholder-white/35 focus:outline-none focus:border-primary transition"
+                    />
+                    {historySearchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setHistorySearchQuery("")}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white"
+                        aria-label="Clear event search"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Pop-out Calendar Date Filter */}
+                  <div className="w-full sm:w-64">
+                    <CalendarDatePicker
+                      id="member-history-date-filter"
+                      value={historyDateFilter}
+                      onChange={setHistoryDateFilter}
+                      outputFormat="iso"
+                      placeholder="Filter by calendar date..."
+                      highlightedIsoDates={Array.from(
+                        new Set(
+                          mySummary.history
+                            .map((h) => toIsoKey(h.eventDate))
+                            .filter((d): d is string => Boolean(d))
+                        )
+                      )}
+                      allowClear={true}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Academic Year Filter Pills (if member has events) */}
+            {myHistoryAcademicYears.length > 1 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setHistoryYearFilter("all")}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-label uppercase tracking-wider transition ${
+                    historyYearFilter === "all"
+                      ? "bg-primary text-white font-semibold"
+                      : "bg-white/[0.05] text-white/60 hover:text-white"
+                  }`}
+                >
+                  All Academic Years ({mySummary.history.length})
+                </button>
+                {myHistoryAcademicYears.map((yr) => (
+                  <button
+                    key={yr}
+                    type="button"
+                    onClick={() => setHistoryYearFilter(yr)}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-mono font-bold transition ${
+                      historyYearFilter === yr
+                        ? "bg-primary text-white"
+                        : "bg-white/[0.05] text-white/60 hover:text-white"
+                    }`}
+                  >
+                    {yr}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {mySummary.history.length === 0 ? (
+              <div className="py-12 px-4 rounded-2xl bg-white/[0.02] border border-white/10 text-center space-y-2">
+                <Award className="w-10 h-10 text-amber-300/40 mx-auto" />
+                <p className="text-sm font-semibold text-white">
+                  No AICTE Event Allocations Recorded Yet
+                </p>
+                <p className="text-xs text-ink-soft max-w-md mx-auto">
+                  No completed event allocations have been recorded for your account yet. Points allocated by club administrators appear here automatically.
+                </p>
+              </div>
+            ) : filteredMyHistory.length === 0 ? (
+              <div className="py-10 px-4 rounded-2xl bg-white/[0.02] border border-white/10 text-center space-y-3">
+                <p className="text-sm text-ink-soft">
+                  No events in your history match the selected filter.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setHistorySearchQuery("");
+                    setHistoryDateFilter("");
+                    setHistoryYearFilter("all");
+                  }}
+                  className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-xs text-white font-label transition"
+                >
+                  Clear Filters
+                </button>
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-2xl border border-white/10">
+                <table className="w-full text-left border-collapse text-xs sm:text-sm">
+                  <thead>
+                    <tr className="border-b border-white/10 bg-white/[0.03] text-[11px] font-label uppercase tracking-wider text-ink-soft">
+                      <th className="py-3.5 px-4">Event Name</th>
+                      <th className="py-3.5 px-4">Academic Year</th>
+                      <th className="py-3.5 px-4">Event Date</th>
+                      <th className="py-3.5 px-4">Allocation Method</th>
+                      <th className="py-3.5 px-4 text-right">Hours</th>
+                      <th className="py-3.5 px-4 text-right">AICTE Points</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {filteredMyHistory.map((item) => (
+                      <tr key={item.id} className="hover:bg-white/[0.03] transition-colors">
+                        <td className="py-3.5 px-4 font-semibold text-white">
+                          {item.eventName}
+                        </td>
+                        <td className="py-3.5 px-4 font-mono text-primary-light">
+                          {item.academicYear}
+                        </td>
+                        <td className="py-3.5 px-4 text-ink-soft">
+                          {formatEventDateDisplay(item.eventDate)}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span className="px-2.5 py-0.5 rounded-md text-[11px] bg-white/[0.06] border border-white/10 text-white/80">
+                            {item.allocationMethod === "hours"
+                              ? "Hours-Based"
+                              : "Direct Points"}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-right font-mono text-ink-soft">
+                          {item.allocationMethod === "hours" && item.hours !== null
+                            ? `${formatCleanNumber(item.hours)} hrs`
+                            : "—"}
+                        </td>
+                        <td className="py-3.5 px-4 text-right font-mono font-bold text-amber-300">
+                          {formatCleanNumber(item.aictePoints)} pts
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Footer Note */}
+            <div className="pt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-ink-soft">
+              <span>
+                AICTE Rule: {settings.hoursPerAICTEPoint} completed hours = 1 AICTE point (or direct club allocation)
+              </span>
+              <span>Read-only personal account view • Verified by ACTCET Administration</span>
+            </div>
+          </section>
+        </div>
+      ) : (
+        <div className="max-w-xl mx-auto text-center py-16 px-6 rounded-3xl border border-white/10 bg-[#0b1530]/80 backdrop-blur-2xl">
+          <User className="w-12 h-12 text-primary-light mx-auto mb-3" />
+          <h2 className="font-display text-xl font-bold text-white mb-2">
+            Sign In to View Your Member Account
+          </h2>
+          <p className="text-xs sm:text-sm text-ink-soft">
+            Please sign in with your approved ACTCET member account to view your personal AICTE points and event participation history.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

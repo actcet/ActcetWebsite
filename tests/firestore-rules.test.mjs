@@ -169,3 +169,37 @@ test("Collection metadata stays readable to approved accounts but immutable thro
   const records = await assertSucceeds(getDocs(query(collection(db, "attendance"), where("eventId", "in", [eventId]))));
   if (records.docs.length) throw new Error("Metadata leaked into empty attendance query");
 });
+
+
+test("Admin can create, update, and delete memberEventPoints allocations; mutual exclusivity and uniqueness enforced", async () => {
+  const db = dbFor("chair");
+  const allocId = `member__${eventId}__2026-27`;
+  const ref = doc(db, "memberEventPoints", allocId);
+  const validHoursAlloc = {
+    memberId: "member",
+    eventId,
+    eventName: "Moon Gazing",
+    eventDate: "2026-08-15",
+    academicYear: "2026-27",
+    allocationMethod: "hours",
+    hours: 4,
+    aictePoints: 1,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    createdBy: "chair",
+    updatedBy: "chair",
+  };
+  await assertSucceeds(setDoc(ref, validHoursAlloc));
+  await assertSucceeds(updateDoc(ref, { allocationMethod: "direct", hours: null, aictePoints: 2, updatedAt: serverTimestamp(), updatedBy: "chair" }));
+  // Rejects simultaneous hours + direct
+  await assertFails(updateDoc(ref, { allocationMethod: "direct", hours: 4, aictePoints: 2, updatedAt: serverTimestamp(), updatedBy: "chair" }));
+  // Rejects mismatched document ID
+  await assertFails(setDoc(doc(db, "memberEventPoints", "wrong_id"), validHoursAlloc));
+  // Approved member can read but cannot modify or delete
+  const memberDb = dbFor("member");
+  await assertSucceeds(getDoc(doc(memberDb, "memberEventPoints", allocId)));
+  await assertFails(updateDoc(doc(memberDb, "memberEventPoints", allocId), { aictePoints: 10, updatedAt: serverTimestamp(), updatedBy: "member" }));
+  await assertFails(deleteDoc(doc(memberDb, "memberEventPoints", allocId)));
+  // Admin can revoke/delete
+  await assertSucceeds(deleteDoc(ref));
+});

@@ -32,6 +32,8 @@ export type UserRole =
 
 export type ApprovalStatus = "pending" | "approved" | "rejected";
 export type AccountType = "member" | "club_admin";
+export type EventStatus = "completed" | "upcoming" | "archived";
+export type AllocationMethod = "hours" | "direct";
 
 export interface Member {
   id: string;
@@ -58,12 +60,92 @@ export interface ClubEvent {
   date: string;
   aicteHours: number;
   description?: string;
+  status?: EventStatus;
+  archived?: boolean;
+  deleted?: boolean;
+  catalogId?: string;
+  isCatalogEvent?: boolean;
+}
+
+export interface ShowcaseEvent {
+  id: string;
+  academicYear: string;
+  name: string;
+  date: string;
+  location: string;
+  domain: string;
+  category: string;
+  participants: string;
+  objective: string;
+  outcome: string;
+  description?: string;
+  image: string;
+  gallery: string[];
+  updatedAt?: string;
+  deleted?: boolean;
+}
+
+export interface UpcomingEvent {
+  id: string;
+  title: string;
+  academicYear: string;
+  date: string;
+  time: string;
+  location: string;
+  category: string;
+  domain: string;
+  description: string;
+  coverImage: string;
+  registrationLink: string;
+  registrationDeadline?: string;
+  aicteHours?: number;
+  updatedAt?: string;
+  deleted?: boolean;
 }
 
 export interface AttendanceRecord {
   memberId: string;
   eventId: string;
   attended: boolean;
+}
+
+export interface MemberEventPointAllocation {
+  id: string;
+  memberId: string;
+  eventId: string;
+  eventName: string;
+  eventDate: string;
+  academicYear: string;
+  allocationMethod: AllocationMethod;
+  hours: number | null;
+  aictePoints: number;
+  createdAt: string;
+  updatedAt: string;
+  createdBy: string;
+  updatedBy?: string;
+  isLegacyMigrated?: boolean;
+}
+
+export interface AICTEAllocationInput {
+  memberId: string;
+  eventId: string;
+  eventName: string;
+  eventDate: string;
+  academicYear: string;
+  allocationMethod: AllocationMethod;
+  hours: number | null;
+  aictePoints?: number;
+}
+
+export interface UpdateEventInput {
+  name?: string;
+  academicYear?: string;
+  date?: string;
+  aicteHours?: number;
+  description?: string;
+  status?: EventStatus;
+  archived?: boolean;
+  deleted?: boolean;
 }
 
 export interface AuthState {
